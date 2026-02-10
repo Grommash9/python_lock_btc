@@ -23,6 +23,12 @@ from embit.networks import NETWORKS
 
 COIN = 100_000_000
 
+# Estimated vsize for P2TR key path spend (1 input, 1 output)
+# Base: 4 (version) + 1 (input count) + 41 (input) + 1 (output count) + 43 (P2TR output) + 4 (locktime) = 94
+# Witness: 1 (items) + 1 (sig len) + 64 (schnorr sig) = 66
+# Weight = 94 * 3 + (94 + 2 + 66) = 444, vsize = ceil(444/4) = 111
+VSIZE_1IN_1OUT_P2TR = 111
+
 # Broadcast API endpoints
 BROADCAST_APIS = {
     "mempool": {
@@ -86,10 +92,10 @@ def create_and_sign_spend_tx(
     vout: int,
     amount_sat: int,
     destination: str,
-    fee_sat: int,
+    fee_rate: int,
     locktime: int,
     network: str = "regtest",
-) -> tuple[str, str]:
+) -> tuple[str, str, int]:
     """
     Create and sign a spend transaction for a timelocked Taproot UTXO.
 
@@ -98,11 +104,15 @@ def create_and_sign_spend_tx(
     The timelock is enforced via the transaction's nLockTime field - the network
     will reject the transaction as "non-final" until the locktime block is reached.
 
-    Returns (raw_tx_hex, txid).
+    Args:
+        fee_rate: Fee rate in sat/vB
+
+    Returns (raw_tx_hex, txid, fee_sat).
     """
+    fee_sat = fee_rate * VSIZE_1IN_1OUT_P2TR
     output_amount_sat = amount_sat - fee_sat
     if output_amount_sat <= 0:
-        raise ValueError("Fee too high - output amount would be negative")
+        raise ValueError(f"Fee too high ({fee_sat} sats) - output amount would be negative")
 
     # Parse descriptor
     d = Descriptor.from_string(descriptor)
@@ -175,7 +185,7 @@ def create_and_sign_spend_tx(
     tx_bytes = tx_no_witness.serialize()
     new_txid = hashlib.sha256(hashlib.sha256(tx_bytes).digest()).digest()[::-1].hex()
 
-    return raw_tx, new_txid
+    return raw_tx, new_txid, fee_sat
 
 
 def main():
@@ -191,7 +201,8 @@ Examples:
     --txid abc123... --vout 0 \\
     --amount 0.5 \\
     --destination bc1p... \\
-    --locktime 250
+    --locktime 250 \\
+    --fee-rate 10
 
   # Create and broadcast to mainnet via mempool.space
   python spend_taproot_locked_utxo.py \\
@@ -201,10 +212,12 @@ Examples:
     --amount 0.1 \\
     --destination bc1p... \\
     --locktime 935000 \\
+    --fee-rate 20 \\
     --network mainnet \\
     --broadcast
 
 The descriptor and private key come from create_taproot_locked_address.py output.
+Fee rate: check https://mempool.space/fees for current rates.
         """,
     )
 
@@ -215,7 +228,7 @@ The descriptor and private key come from create_taproot_locked_address.py output
     parser.add_argument("--amount", type=Decimal, required=True, help="Amount in BTC")
     parser.add_argument("--destination", required=True, help="Destination address")
     parser.add_argument("--locktime", type=int, required=True, help="Locktime (block height)")
-    parser.add_argument("--fee", type=Decimal, default=Decimal("0.0001"), help="Fee in BTC (default: 0.0001)")
+    parser.add_argument("--fee-rate", type=int, default=10, help="Fee rate in sat/vB (default: 10)")
     parser.add_argument("--network", default="regtest", choices=["mainnet", "testnet", "signet", "regtest"],
                         help="Network (default: regtest)")
     parser.add_argument("--broadcast", action="store_true", help="Broadcast via mempool.space API")
@@ -230,7 +243,7 @@ The descriptor and private key come from create_taproot_locked_address.py output
     print(f"TXID:        {args.txid}")
     print(f"Vout:        {args.vout}")
     print(f"Amount:      {args.amount} BTC")
-    print(f"Fee:         {args.fee} BTC")
+    print(f"Fee rate:    {args.fee_rate} sat/vB")
     print(f"Destination: {args.destination}")
     print(f"Locktime:    {args.locktime}")
     print(f"Network:     {args.network}")
@@ -245,20 +258,21 @@ The descriptor and private key come from create_taproot_locked_address.py output
             "regtest": "regtest"
         }.get(args.network, args.network)
 
-        raw_tx, new_txid = create_and_sign_spend_tx(
+        raw_tx, new_txid, fee_sat = create_and_sign_spend_tx(
             descriptor=args.descriptor,
             private_key_wif=args.private_key,
             txid=args.txid,
             vout=args.vout,
             amount_sat=btc_to_sat(args.amount),
             destination=args.destination,
-            fee_sat=btc_to_sat(args.fee),
+            fee_rate=args.fee_rate,
             locktime=args.locktime,
             network=embit_network,
         )
 
         print(f"Transaction created!")
         print(f"TXID: {new_txid}")
+        print(f"Fee:  {fee_sat} sats ({args.fee_rate} sat/vB × {VSIZE_1IN_1OUT_P2TR} vB)")
         print()
         print(f"Raw transaction ({len(raw_tx)//2} bytes):")
         print(raw_tx)

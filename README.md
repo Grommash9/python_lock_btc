@@ -112,15 +112,16 @@ SPENDING TIMELOCKED TAPROOT UTXO
 TXID:        <funding-txid>
 Vout:        0
 Amount:      0.1 BTC
-Fee:         0.0001 BTC
+Fee rate:    20 sat/vB
 Destination: bc1p...
 Locktime:    935000
 Network:     mainnet
 
 Transaction created!
 TXID: abc123...
+Fee:  2220 sats (20 sat/vB × 111 vB)
 
-Raw transaction (234 bytes):
+Raw transaction (162 bytes):
 020000000001...
 
 ======================================================================
@@ -161,15 +162,17 @@ python spend_taproot_locked_utxo.py \
 
 Use `--broadcast-api blockstream` to use blockstream.info instead.
 
-### Fee Estimation
+### Fee Rate
 
-Check current fee rates at [mempool.space/fees](https://mempool.space/fees) and adjust with `--fee`:
+The script uses fee rate in **sat/vB** (satoshis per virtual byte). Check current rates at [mempool.space/fees](https://mempool.space/fees):
 
 ```bash
---fee 0.00005   # 5,000 sats (low priority)
---fee 0.0001    # 10,000 sats (default)
---fee 0.0002    # 20,000 sats (high priority)
+--fee-rate 5    # ~555 sats total (low priority)
+--fee-rate 10   # ~1110 sats total (default)
+--fee-rate 50   # ~5550 sats total (high priority)
 ```
+
+Transaction size is ~111 vB for a 1-input, 1-output P2TR key path spend.
 
 ---
 
@@ -299,16 +302,17 @@ SPENDING TIMELOCKED TAPROOT UTXO
 TXID:        c7041b09e125c5436a6bcfe8df4573c6f6b40c435ac05d725e1f5d144738e414
 Vout:        0
 Amount:      0.2 BTC
-Fee:         0.0001 BTC
+Fee rate:    10 sat/vB
 Destination: bcrt1pn09axek9gtthvdg4qgglv2pa8l6dn9uaxykd7shyh0gy02nhm9sslp6ha5
 Locktime:    120
 Network:     regtest
 
 Transaction created!
 TXID: 6a4e735c0d8149faf5179fb145b5b12e835767fbc2c7f863664ade64a9be73a1
+Fee:  1110 sats (10 sat/vB × 111 vB)
 
 Raw transaction (162 bytes):
-0200000000010114e43847145d1f5e725dc05a430cb4f6c67345dfe8cf6b6a43c525e1091b04c70000000000feffffff01f0053101000000002251209bcbd366c542d77635150211f6283d3ff4d9979d312cdf42e4bbd047aa77d961014093a92a92ad70e425a8d62620b20f350288cef8533ecacee0c433ee1322d8b3794358957ccd17c1d9464d761a8d3a71f9748900b41954a074fbec4c7930a399ca78000000
+0200000000010114e43847145d1f5e725dc05a430cb4f6c673...
 
 ======================================================================
 BROADCAST OPTIONS
@@ -367,7 +371,7 @@ Output:
 {
   "bestblock": "5f219c5d7e18658c636189fbe66850e84e7e26d5cc452ae06daa25a8f6ad89a3",
   "confirmations": 1,
-  "value": 0.19990000,
+  "value": 0.19998890,
   "scriptPubKey": {
     "asm": "1 9bcbd366c542d77635150211f6283d3ff4d9979d312cdf42e4bbd047aa77d961",
     "desc": "rawtr(9bcbd366c542d77635150211f6283d3ff4d9979d312cdf42e4bbd047aa77d961)#q2ud38tc",
@@ -379,7 +383,7 @@ Output:
 }
 ```
 
-The funds (0.19990000 BTC = 0.2 - 0.0001 fee) are now at the destination address!
+The funds (0.19998890 BTC = 0.2 BTC - 1110 sats fee) are now at the destination address!
 
 ---
 
