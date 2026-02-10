@@ -11,8 +11,11 @@ after the timelock expires. This provides cryptographically enforced timelocks.
 """
 
 import argparse
+import json
 import secrets
 import sys
+from datetime import datetime
+from pathlib import Path
 
 from embit import bech32
 from embit.descriptor import Descriptor
@@ -128,6 +131,13 @@ Taproot addresses start with:
         help="Use existing private key (hex). If not provided, generates new key.",
     )
 
+    parser.add_argument(
+        "--save-backup",
+        type=str,
+        metavar="FILE",
+        help="Save backup to JSON file (e.g., --save-backup backup.json). Contains all info needed to spend.",
+    )
+
     args = parser.parse_args()
 
     # Validate locktime
@@ -163,6 +173,27 @@ Taproot addresses start with:
     print()
     print(f"Send BTC to: {result['address']}")
     print(f"Funds spendable after block {result['locktime']} (ENFORCED - no bypass possible)")
+
+    # Save backup if requested
+    if args.save_backup:
+        backup_data = {
+            "created_at": datetime.utcnow().isoformat() + "Z",
+            "warning": "KEEP THIS FILE SECURE - contains private key!",
+            "network": result["network"],
+            "address": result["address"],
+            "locktime": result["locktime"],
+            "descriptor": result["descriptor"],
+            "private_key_wif": result["private_key_wif"],
+            "private_key_hex": result["private_key_hex"],
+            "public_key_hex": result["public_key_hex"],
+            "internal_key": result["internal_key"],
+        }
+
+        backup_path = Path(args.save_backup)
+        backup_path.write_text(json.dumps(backup_data, indent=2))
+        print()
+        print(f"Backup saved to: {backup_path.absolute()}")
+        print("WARNING: This file contains your private key. Store it securely!")
 
 
 if __name__ == "__main__":

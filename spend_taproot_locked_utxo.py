@@ -22,7 +22,7 @@ from embit.transaction import Transaction, TransactionInput, TransactionOutput, 
 from embit.script import Script, Witness
 from embit.ec import PrivateKey
 from embit.networks import NETWORKS
-from embit.hashes import tagged_hash
+from embit.misc import secp256k1
 
 
 COIN = 100_000_000
@@ -174,59 +174,14 @@ def create_and_sign_spend_tx(
     # For single leaf: merkle_root = tagged_hash("TapLeaf", leaf_version || script)
     merkle_root = taptree.tweak()
 
-    # Compute the tweaked public key Q = P + t*G
-    # We need to determine if Q has odd y-coordinate for the control block parity bit
-    # Note: embit's taproot_tweak normalizes to even y, but we need the RAW parity
+    # Use embit's built-in taproot_tweak to compute the output key Q = P + t*G
+    # Then extract the parity bit using secp256k1's xonly_pubkey_from_pubkey
+    tweaked_output_key = internal_key.taproot_tweak(merkle_root)
 
-    # Compute the tweak scalar
-    tweak_bytes = tagged_hash("TapTweak", internal_pubkey_x + merkle_root)
-
-    # To determine parity, we need to compute P + t*G and check y's parity
-    # We'll use a direct computation since embit normalizes the result
-    # secp256k1 field prime
-    p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
-
-    # Get internal key as point (with even y)
-    p_x_int = int.from_bytes(internal_pubkey_x, 'big')
-    y_sq = (pow(p_x_int, 3, p) + 7) % p
-    p_y = pow(y_sq, (p + 1) // 4, p)
-    if p_y % 2 == 1:
-        p_y = p - p_y  # Make y even (x-only convention)
-
-    # Compute tweak*G
-    t = int.from_bytes(tweak_bytes, 'big')
-    G_x = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
-    G_y = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
-
-    def point_add(x1, y1, x2, y2):
-        if x1 is None:
-            return x2, y2
-        if x2 is None:
-            return x1, y1
-        if x1 == x2 and y1 == (p - y2) % p:
-            return None, None
-        if x1 == x2 and y1 == y2:
-            lam = (3 * x1 * x1) * pow(2 * y1, p - 2, p) % p
-        else:
-            lam = (y2 - y1) * pow(x2 - x1, p - 2, p) % p
-        x3 = (lam * lam - x1 - x2) % p
-        y3 = (lam * (x1 - x3) - y1) % p
-        return x3, y3
-
-    def scalar_mult(k, x, y):
-        rx, ry = None, None
-        while k:
-            if k & 1:
-                rx, ry = point_add(rx, ry, x, y)
-            x, y = point_add(x, y, x, y)
-            k >>= 1
-        return rx, ry
-
-    tG_x, tG_y = scalar_mult(t, G_x, G_y)
-    _, Q_y = point_add(p_x_int, p_y, tG_x, tG_y)
-
-    # The parity bit is 1 if Q has odd y
-    parity_bit = 1 if Q_y % 2 == 1 else 0
+    # Get the parity bit from the tweaked output key
+    # secp256k1.xonly_pubkey_from_pubkey returns (xonly_pub, parity_bool)
+    _, parity_bit = secp256k1.xonly_pubkey_from_pubkey(tweaked_output_key._point)
+    parity_bit = 1 if parity_bit else 0
 
     # Build control block: (leaf_version | parity_bit) || internal_key_x || merkle_path
     # For single leaf tree, merkle_path is empty
@@ -297,6 +252,83 @@ def create_and_sign_spend_tx(
     return raw_tx, new_txid, fee_sat
 
 
+def create_unsigned_psbt(
+    descriptor: str,
+    txid: str,
+    vout: int,
+    amount_sat: int,
+    destination: str,
+    fee_rate: int,
+    locktime: int,
+    network: str = "regtest",
+) -> str:
+    """
+    Create an unsigned PSBT for verification in external wallets (e.g., Sparrow, Specter).
+
+    This allows users to inspect the transaction details before signing,
+    providing an additional layer of security for high-value transactions.
+
+    Returns the PSBT in base64 format.
+    """
+    fee_sat = fee_rate * VSIZE_1IN_1OUT_P2TR_SCRIPT
+    output_amount_sat = amount_sat - fee_sat
+    if output_amount_sat <= 0:
+        raise ValueError(f"Fee too high ({fee_sat} sats) - output amount would be negative")
+
+    # Parse descriptor
+    d = Descriptor.from_string(descriptor)
+    if not d.is_taproot:
+        raise ValueError("Descriptor is not a Taproot descriptor")
+
+    # Get network config
+    net = NETWORKS.get(network)
+    if not net:
+        net_map = {"mainnet": "main", "main": "main", "testnet": "test", "regtest": "regtest", "signet": "signet"}
+        net = NETWORKS.get(net_map.get(network, network))
+    if not net:
+        raise ValueError(f"Unknown network: {network}")
+
+    # Parse previous txid
+    prev_txid = bytes.fromhex(txid)
+
+    # Create the unsigned transaction
+    tx = Transaction(
+        version=2,
+        locktime=locktime,
+        vin=[TransactionInput(prev_txid, vout, sequence=0xFFFFFFFE)],
+        vout=[TransactionOutput(output_amount_sat, Script.from_address(destination))]
+    )
+
+    # Create PSBT from the unsigned transaction
+    psbt = PSBT(tx)
+
+    # Add witness UTXO information for the input
+    script_pubkey = d.script_pubkey()
+    psbt.inputs[0].witness_utxo = TransactionOutput(amount_sat, script_pubkey)
+
+    # Add tap internal key
+    internal_key = d.key
+    internal_pubkey_bytes = internal_key.sec()
+    if len(internal_pubkey_bytes) == 33:
+        internal_pubkey_x = internal_pubkey_bytes[1:]
+    else:
+        internal_pubkey_x = internal_pubkey_bytes
+    psbt.inputs[0].tap_internal_key = internal_pubkey_x
+
+    # Add tap leaf script info
+    taptree = d.taptree
+    if taptree:
+        tap_leaf = taptree.tree
+        script_bytes = tap_leaf.miniscript.compile()
+        leaf_version = 0xc0
+        # Store leaf script with leaf version
+        psbt.inputs[0].tap_leaf_scripts = {
+            (internal_pubkey_x, bytes([leaf_version]) + script_bytes): bytes([leaf_version])
+        }
+
+    return psbt.to_base64()
+
+
 def encode_compact_size(n: int) -> bytes:
     """Encode an integer as Bitcoin's compact size (varint)."""
     if n < 0xfd:
@@ -355,6 +387,8 @@ Fee rate: check https://mempool.space/fees for current rates.
     parser.add_argument("--broadcast", action="store_true", help="Broadcast via mempool.space API")
     parser.add_argument("--broadcast-api", default="mempool", choices=["mempool", "blockstream"],
                         help="Broadcast API to use (default: mempool)")
+    parser.add_argument("--psbt", action="store_true",
+                        help="Output unsigned PSBT for verification in external wallets (Sparrow, Specter, etc.)")
 
     args = parser.parse_args()
 
@@ -398,6 +432,30 @@ Fee rate: check https://mempool.space/fees for current rates.
         print(f"Raw transaction ({len(raw_tx)//2} bytes):")
         print(raw_tx)
         print()
+
+        # Output PSBT if requested
+        if args.psbt:
+            print("=" * 70)
+            print("PSBT (for verification in external wallets)")
+            print("=" * 70)
+            psbt_base64 = create_unsigned_psbt(
+                descriptor=args.descriptor,
+                txid=args.txid,
+                vout=args.vout,
+                amount_sat=btc_to_sat(args.amount),
+                destination=args.destination,
+                fee_rate=args.fee_rate,
+                locktime=args.locktime,
+                network=embit_network,
+            )
+            print(psbt_base64)
+            print()
+            print("Import this PSBT into Sparrow, Specter, or another wallet to verify:")
+            print("  - Input amount and source")
+            print("  - Output destination and amount")
+            print("  - Fee amount")
+            print("  - Timelock conditions")
+            print()
 
         if args.broadcast:
             if args.network == "regtest":

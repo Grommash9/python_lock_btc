@@ -64,7 +64,46 @@ Funds spendable after block 935000
 
 ### Step 2: Securely Store Recovery Info
 
-**CRITICAL:** Before sending any funds, securely backup:
+**CRITICAL:** Before sending any funds, securely backup your recovery information.
+
+#### Option A: Automatic Backup (Recommended)
+
+Use the `--save-backup` flag to create a JSON backup file:
+
+```bash
+python create_taproot_locked_address.py --locktime 935000 --network main --save-backup my_timelock_backup.json
+```
+
+This creates a JSON file containing all information needed to spend:
+```json
+{
+  "created_at": "2025-02-10T12:00:00Z",
+  "warning": "KEEP THIS FILE SECURE - contains private key!",
+  "network": "main",
+  "address": "bc1p...",
+  "locktime": 935000,
+  "descriptor": "tr(...)",
+  "private_key_wif": "L...",
+  "private_key_hex": "...",
+  "public_key_hex": "...",
+  "internal_key": "50929b74..."
+}
+```
+
+**Encrypt this file immediately:**
+```bash
+# Using GPG
+gpg -c my_timelock_backup.json
+rm my_timelock_backup.json
+
+# Or using age
+age -p my_timelock_backup.json > my_timelock_backup.json.age
+rm my_timelock_backup.json
+```
+
+#### Option B: Manual Backup
+
+Save these values from the script output:
 - Descriptor (needed to identify the script)
 - Private Key (WIF format)
 - Locktime value
@@ -142,6 +181,36 @@ Option 3: Paste the raw transaction at:
 
 ======================================================================
 ```
+
+### PSBT Verification (Recommended for High-Value Transactions)
+
+Before broadcasting, you can generate a PSBT (Partially Signed Bitcoin Transaction) to verify the transaction details in an external wallet like Sparrow or Specter:
+
+```bash
+python spend_taproot_locked_utxo.py \
+  --descriptor "tr(50929b74...,and_v(v:pk(02...),after(935000)))" \
+  --private-key L... \
+  --txid <funding-txid> \
+  --vout 0 \
+  --amount 0.1 \
+  --destination <your-destination-address> \
+  --locktime 935000 \
+  --network mainnet \
+  --psbt
+```
+
+This outputs a base64-encoded PSBT that you can import into:
+- **Sparrow Wallet**: File → Import Transaction → Paste PSBT
+- **Specter Desktop**: Send → Import PSBT
+- **Bitcoin Core**: `bitcoin-cli decodepsbt <psbt>`
+
+The wallet will show you:
+- Input amount and source UTXO
+- Output destination and amount
+- Network fee
+- Timelock conditions
+
+This provides an additional verification layer before signing and broadcasting.
 
 ### Auto-Broadcast via API
 
