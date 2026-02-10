@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Timelock Wallet</title>
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --accent: #e94560;
+            --accent-hover: #ff6b6b;
+            --text-primary: #eaeaea;
+            --text-secondary: #a0a0a0;
+            --success: #4ade80;
+            --warning: #fbbf24;
+            --error: #ef4444;
+            --border: #2a4a6e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        header {
+            background: var(--bg-secondary);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            color: var(--accent);
+        }
+
+        .network-status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--bg-card);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--error);
+        }
+
+        .status-indicator.connected {
+            background: var(--success);
+        }
+
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        section {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        section h2 {
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            font-size: 1.25rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 0.25rem;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button.primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        button.primary:hover {
+            background: var(--accent-hover);
+        }
+
+        button.secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        button.secondary:hover {
+            background: var(--border);
+        }
+
+        button.danger {
+            background: var(--error);
+            color: white;
+        }
+
+        button.danger:hover {
+            background: #dc2626;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .results {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .results.hidden {
+            display: none;
+        }
+
+        .result-field {
+            margin-bottom: 1rem;
+        }
+
+        .result-field label {
+            display: block;
+            margin-bottom: 0.25rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .copyable {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .copyable input, .copyable textarea {
+            flex: 1;
+        }
+
+        .copy-btn {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .warning-box {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid var(--warning);
+            border-radius: 6px;
+            padding: 1rem;
+            margin: 1rem 0;
+            color: var(--warning);
+            font-size: 0.9rem;
+        }
+
+        .error-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--error);
+            border-radius: 6px;
+            padding: 1rem;
+            margin: 1rem 0;
+            color: var(--error);
+            font-size: 0.9rem;
+        }
+
+        .success-box {
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid var(--success);
+            border-radius: 6px;
+            padding: 1rem;
+            margin: 1rem 0;
+            color: var(--success);
+            font-size: 0.9rem;
+        }
+
+        .utxo-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: var(--bg-card);
+            border-radius: 6px;
+            margin: 0.5rem 0;
+        }
+
+        .utxo-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+
+        .utxo-item:last-child {
+            border-bottom: none;
+        }
+
+        .utxo-item input[type="checkbox"] {
+            width: auto;
+            margin-right: 0.75rem;
+        }
+
+        .utxo-item .txid {
+            color: var(--text-secondary);
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .utxo-item .amount {
+            margin-left: auto;
+            color: var(--success);
+            font-weight: 500;
+        }
+
+        .total-display {
+            background: var(--bg-card);
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-top: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .fee-suggestions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .fee-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .fee-btn:hover {
+            border-color: var(--accent);
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            margin-top: 2rem;
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .inline-input {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .inline-input input {
+            flex: 1;
+        }
+
+        .toggle-btn {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        #loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .network-mainnet {
+            color: var(--error) !important;
+            font-weight: bold;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            margin: 1rem;
+        }
+
+        .modal-content h2 {
+            color: var(--accent);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .modal-content h3 {
+            color: var(--text-primary);
+            margin: 1.5rem 0 0.75rem 0;
+            font-size: 1.1rem;
+        }
+
+        .modal-content p, .modal-content li {
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            line-height: 1.6;
+        }
+
+        .modal-content ul {
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .modal-content .highlight {
+            color: var(--warning);
+            font-weight: 500;
+        }
+
+        .modal-close-btn {
+            margin-top: 1.5rem;
+            width: 100%;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .about-btn {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .network-select-header {
+            padding: 0.4rem 0.6rem;
+            font-size: 0.85rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+        }
+
+        .network-select-header:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .live-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            margin-left: 0.25rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Welcome Modal -->
+    <div class="modal-overlay" id="welcome-modal">
+        <div class="modal-content">
+            <h2>Welcome to Bitcoin Timelock Wallet</h2>
+            <p>This tool lets you create <strong>time-locked Bitcoin addresses</strong> using Taproot technology. Funds sent to these addresses can only be spent after a specific block height is reached.</p>
+
+            <h3>How It Works</h3>
+            <ul>
+                <li><strong>Create a Timelocked Address:</strong> Generate a new address locked until a specific block height. A private key is created for you.</li>
+                <li><strong>Send Bitcoin:</strong> Send BTC to the generated address from any wallet.</li>
+                <li><strong>Wait for Unlock:</strong> The funds cannot be moved until the blockchain reaches your specified block height.</li>
+                <li><strong>Spend After Unlock:</strong> Once unlocked, use this tool to spend the funds to any destination address.</li>
+            </ul>
+
+            <h3>Security</h3>
+            <ul>
+                <li>All cryptographic operations run <span class="highlight">entirely in your browser</span>.</li>
+                <li>Private keys <span class="highlight">never leave your device</span>.</li>
+                <li>Download the backup JSON file and store it securely - it contains your private key!</li>
+                <li>Uses NUMS (Nothing Up My Sleeve) internal key - funds can ONLY be spent via script path after timelock.</li>
+            </ul>
+
+            <h3>Networks</h3>
+            <ul>
+                <li><strong>Testnet:</strong> Test with fake BTC (recommended for learning).</li>
+                <li><strong>Signet:</strong> Another test network with more predictable blocks.</li>
+                <li><strong>Mainnet:</strong> Real Bitcoin - use with caution!</li>
+                <li><strong>Regtest:</strong> Local testing (requires running a local node).</li>
+            </ul>
+
+            <button class="primary modal-close-btn" onclick="closeWelcomeModal()">Got it, let's start!</button>
+        </div>
+    </div>
+
+    <header>
+        <div class="header-left">
+            <h1>Bitcoin Timelock Wallet</h1>
+            <button class="secondary about-btn" onclick="openWelcomeModal()">About</button>
+        </div>
+        <div class="network-status">
+            <select id="network-selector" class="network-select-header" onchange="onGlobalNetworkChange()">
+                <option value="testnet">Testnet</option>
+                <option value="signet">Signet</option>
+                <option value="mainnet">Mainnet</option>
+                <option value="regtest">Regtest</option>
+            </select>
+            <span>|</span>
+            <div class="status-indicator" id="status-indicator"></div>
+            <span id="status-text">Connecting...</span>
+            <span>|</span>
+            <span>Block: <strong id="header-block-height">--</strong><span class="live-indicator" id="live-indicator" style="display: none;"></span></span>
+        </div>
+    </header>
+
+    <main>
+        <!-- Section 1: Create Address -->
+        <section id="create-section">
+            <h2>1. Create Timelocked Address</h2>
+
+            <div class="form-group">
+                <label>Locktime (Block Height)</label>
+                <input type="number" id="locktime" placeholder="e.g., 950000" min="1" max="499999999">
+                <small>
+                    Current height: <span id="current-height">--</span> |
+                    Unlock at block: <span id="lock-target">--</span>
+                </small>
+                <div id="time-estimate" style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg-card); border-radius: 4px; display: none;">
+                    <strong>Time Estimate:</strong>
+                    <span id="blocks-until">--</span> blocks to go |
+                    ~<span id="time-until">--</span>
+                    <br><small style="color: var(--text-secondary);">Based on average 10 min/block (mainnet). Regtest is instant.</small>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Import Existing Private Key (optional)</label>
+                <input type="text" id="import-privkey" placeholder="WIF format (starts with c, K, L, or 5)">
+                <small>Leave empty to generate a new key</small>
+            </div>
+
+            <div id="mainnet-create-warning" class="warning-box" style="display: none;">
+                <strong>Warning:</strong> You have selected MAINNET. Real Bitcoin will be at risk. Make sure you understand what you're doing and backup your private key!
+            </div>
+
+            <button id="generate-btn" class="primary" onclick="generateAddress()">Generate Address</button>
+
+            <div id="create-results" class="results hidden">
+                <div class="result-field">
+                    <label>Address (send BTC here to lock it)</label>
+                    <div class="copyable">
+                        <input type="text" id="result-address" readonly>
+                        <button class="copy-btn secondary" onclick="copyField('result-address')">Copy</button>
+                    </div>
+                </div>
+
+                <div class="result-field">
+                    <label>Descriptor (needed for spending)</label>
+                    <div class="copyable">
+                        <textarea id="result-descriptor" readonly rows="3"></textarea>
+                        <button class="copy-btn secondary" onclick="copyField('result-descriptor')">Copy</button>
+                    </div>
+                </div>
+
+                <div class="result-field">
+                    <label>Locktime</label>
+                    <input type="text" id="result-locktime" readonly>
+                </div>
+
+                <div class="warning-box">
+                    <strong>IMPORTANT:</strong> Save the private key below securely! Without it, you cannot spend your locked funds.
+                </div>
+
+                <div class="result-field">
+                    <label>Private Key (WIF) - KEEP SECRET!</label>
+                    <div class="copyable">
+                        <input type="password" id="result-privkey-wif" readonly>
+                        <button class="toggle-btn secondary" onclick="toggleVisibility('result-privkey-wif', this)">Show</button>
+                        <button class="copy-btn secondary" onclick="copyField('result-privkey-wif')">Copy</button>
+                    </div>
+                </div>
+
+                <div class="result-field">
+                    <label>Private Key (Hex)</label>
+                    <div class="copyable">
+                        <input type="password" id="result-privkey-hex" readonly>
+                        <button class="toggle-btn secondary" onclick="toggleVisibility('result-privkey-hex', this)">Show</button>
+                        <button class="copy-btn secondary" onclick="copyField('result-privkey-hex')">Copy</button>
+                    </div>
+                </div>
+
+                <div class="result-field">
+                    <label>Public Key (Hex)</label>
+                    <div class="copyable">
+                        <input type="text" id="result-pubkey" readonly>
+                        <button class="copy-btn secondary" onclick="copyField('result-pubkey')">Copy</button>
+                    </div>
+                </div>
+
+                <div class="btn-row" style="margin-top: 1rem;">
+                    <button class="secondary" onclick="downloadBackup()">Download Backup JSON</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Spend -->
+        <section id="spend-section">
+            <h2>2. Spend from Timelocked Address</h2>
+
+            <div class="form-group">
+                <label>Descriptor</label>
+                <textarea id="spend-descriptor" placeholder="tr(50929b74...,and_v(v:pk(...),after(...)))"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Private Key (WIF)</label>
+                <div class="inline-input">
+                    <input type="password" id="spend-privkey">
+                    <button class="toggle-btn secondary" onclick="toggleVisibility('spend-privkey', this)">Show</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Destination Address</label>
+                <input type="text" id="destination" placeholder="tb1q... or tb1p... (testnet address)">
+            </div>
+
+            <div class="form-group">
+                <label>Fee Rate (sat/vB)</label>
+                <input type="number" id="fee-rate" value="10" min="1">
+                <div class="fee-suggestions" id="fee-suggestions">
+                    <span class="fee-btn" onclick="setFeeRate('fast')">Fast: <span id="fee-fast">--</span></span>
+                    <span class="fee-btn" onclick="setFeeRate('medium')">Medium: <span id="fee-medium">--</span></span>
+                    <span class="fee-btn" onclick="setFeeRate('slow')">Economy: <span id="fee-slow">--</span></span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>UTXOs</label>
+                <div class="inline-input">
+                    <input type="text" id="utxo-address" placeholder="Address to fetch UTXOs from">
+                    <button class="secondary" onclick="fetchUTXOs()">Fetch</button>
+                </div>
+                <div class="utxo-list" id="utxo-list">
+                    <div style="padding: 1rem; color: var(--text-secondary); text-align: center;">
+                        No UTXOs loaded. Fetch from address or add manually.
+                    </div>
+                </div>
+                <div class="inline-input" style="margin-top: 0.5rem;">
+                    <input type="text" id="manual-utxo" placeholder="txid:vout:amount (e.g., abc...:0:0.1)">
+                    <button class="secondary" onclick="addManualUTXO()">Add</button>
+                </div>
+                <div class="total-display">
+                    <span>Selected:</span>
+                    <span id="utxo-count">0</span> UTXOs |
+                    <span id="total-sats">0</span> sats
+                </div>
+            </div>
+
+            <div id="mainnet-spend-warning" class="warning-box" style="display: none;">
+                <strong>Warning:</strong> You are about to spend REAL Bitcoin on mainnet. This action is IRREVERSIBLE. Double-check all details!
+            </div>
+
+            <button id="create-tx-btn" class="primary" onclick="createTransaction()">Create Transaction</button>
+
+            <div id="spend-results" class="results hidden">
+                <div class="result-field">
+                    <label>Transaction ID (after broadcast)</label>
+                    <div class="copyable">
+                        <input type="text" id="result-txid" readonly>
+                        <button class="copy-btn secondary" onclick="copyField('result-txid')">Copy</button>
+                    </div>
+                </div>
+
+                <div class="result-field">
+                    <label>Size / Fee</label>
+                    <div style="display: flex; gap: 2rem; padding: 0.5rem 0;">
+                        <span>vSize: <strong id="result-vsize">--</strong> vB</span>
+                        <span>Fee: <strong id="result-fee">--</strong> sats</span>
+                        <span>Output: <strong id="result-output">--</strong> sats</span>
+                    </div>
+                </div>
+
+                <div class="result-field">
+                    <label>Raw Transaction Hex</label>
+                    <div class="copyable">
+                        <textarea id="result-rawtx" readonly rows="4"></textarea>
+                        <button class="copy-btn secondary" onclick="copyField('result-rawtx')">Copy</button>
+                    </div>
+                </div>
+
+                <div id="broadcast-section">
+                    <div class="warning-box">
+                        <strong>Warning:</strong> Broadcasting is IRREVERSIBLE. Verify all details above before proceeding.
+                    </div>
+                    <button id="broadcast-btn" class="danger" onclick="broadcastTransaction()">Broadcast Transaction</button>
+                    <div id="broadcast-result" class="success-box" style="display: none;">
+                        Transaction broadcast successfully!
+                        <br>TXID: <span id="broadcast-txid"></span>
+                        <br><a id="explorer-link" href="#" target="_blank">View on Explorer</a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>All cryptographic operations run client-side. Private keys never leave your browser.</p>
+        <p style="margin-top: 0.5rem;">
+            Powered by <a href="https://mempool.space" target="_blank">mempool.space</a> API |
+            <span id="regtest-info" style="display: none;">Regtest Proxy: <code>http://localhost:5001</code></span>
+        </p>
+    </footer>
+
+    <!-- Load crypto libraries as ES modules -->
+    <script type="module">
+        // Load both libraries as ES modules and expose to global scope
+        import * as secp from 'https://cdn.jsdelivr.net/npm/noble-secp256k1@1.2.14/+esm';
+        import * as tapscript from 'https://unpkg.com/@cmdcode/tapscript@1.4.6/dist/module.mjs';
+
+        window.nobleSecp256k1 = secp;
+        window.tapscript = tapscript;
+
+        // Signal that libraries are loaded
+        window.dispatchEvent(new Event('libraries-loaded'));
+    </script>
+
+    <script>
+    // ============================================================================
+    // CONSTANTS
+    // ============================================================================
+
+    // NUMS point - provably unspendable (no one knows the discrete log)
+    const NUMS_KEY_HEX = '50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0';
+
+    // Network configurations
+    const NETWORKS = {
+        mainnet: {
+            bech32: 'bc',
+            wifPrefix: 0x80,
+            api: 'https://mempool.space/api',
+            explorer: 'https://mempool.space/tx/'
+        },
+        testnet: {
+            bech32: 'tb',
+            wifPrefix: 0xef,
+            api: 'https://mempool.space/testnet/api',
+            explorer: 'https://mempool.space/testnet/tx/'
+        },
+        signet: {
+            bech32: 'tb',
+            wifPrefix: 0xef,
+            api: 'https://mempool.space/signet/api',
+            explorer: 'https://mempool.space/signet/tx/'
+        },
+        regtest: {
+            bech32: 'bcrt',
+            wifPrefix: 0xef,
+            api: 'http://localhost:5001',
+            explorer: null
+        }
+    };
+
+    // Leaf version for Tapscript
+    const LEAF_VERSION = 0xc0;
+
+    // secp256k1 curve order (for negating keys with odd y-coordinate)
+    const SECP256K1_ORDER = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141');
+
+    // State
+    let currentAddressData = null;
+    let utxos = [];
+    let feeRates = { fast: 10, medium: 5, slow: 1 };
+    let refreshInterval = null;
+    let lastBlockHeight = null;
+
+    // ============================================================================
+    // UTILITY FUNCTIONS
+    // ============================================================================
+
+    function hexToBytes(hex) {
+        const bytes = new Uint8Array(hex.length / 2);
+        for (let i = 0; i < hex.length; i += 2) {
+            bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+        }
+        return bytes;
+    }
+
+    function bytesToHex(bytes) {
+        return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Encode an integer as minimal Bitcoin Script pushdata (little-endian, signed)
+    function encodeScriptInt(n) {
+        if (n === 0) return '';  // OP_0 is handled by script assembler
+        if (n >= 1 && n <= 16) return '';  // OP_1-OP_16 handled by assembler
+
+        // Convert to bytes (little-endian)
+        let bytes = [];
+        let absN = Math.abs(n);
+        while (absN > 0) {
+            bytes.push(absN & 0xff);
+            absN = Math.floor(absN / 256);
+        }
+
+        // If positive and MSB of last byte is set, add 0x00
+        if (n > 0 && (bytes[bytes.length - 1] & 0x80) !== 0) {
+            bytes.push(0x00);
+        }
+        // If negative, set the sign bit
+        if (n < 0) {
+            if ((bytes[bytes.length - 1] & 0x80) !== 0) {
+                bytes.push(0x80);
+            } else {
+                bytes[bytes.length - 1] |= 0x80;
+            }
+        }
+
+        return bytesToHex(new Uint8Array(bytes));
+    }
+
+    function showLoading() {
+        document.getElementById('loading-overlay').classList.add('active');
+    }
+
+    function hideLoading() {
+        document.getElementById('loading-overlay').classList.remove('active');
+    }
+
+    function showError(message) {
+        alert('Error: ' + message);
+    }
+
+    function copyField(fieldId) {
+        const field = document.getElementById(fieldId);
+        const originalType = field.type;
+        field.type = 'text';
+        field.select();
+        document.execCommand('copy');
+        field.type = originalType;
+
+        // Visual feedback
+        const btn = field.parentElement.querySelector('.copy-btn');
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = originalText, 1000);
+    }
+
+    function toggleVisibility(fieldId, btn) {
+        const field = document.getElementById(fieldId);
+        if (field.type === 'password') {
+            field.type = 'text';
+            btn.textContent = 'Hide';
+        } else {
+            field.type = 'password';
+            btn.textContent = 'Show';
+        }
+    }
+
+    function getSelectedNetwork() {
+        return document.getElementById('network-selector').value;
+    }
+
+    function onGlobalNetworkChange() {
+        const network = getSelectedNetwork();
+
+        // Show/hide mainnet warnings
+        const isMainnet = network === 'mainnet';
+        document.getElementById('mainnet-create-warning').style.display = isMainnet ? 'block' : 'none';
+        document.getElementById('mainnet-spend-warning').style.display = isMainnet ? 'block' : 'none';
+
+        // Show/hide regtest proxy info
+        document.getElementById('regtest-info').style.display = network === 'regtest' ? 'inline' : 'none';
+
+        // Update destination placeholder based on network
+        const destInput = document.getElementById('destination');
+        if (network === 'mainnet') {
+            destInput.placeholder = 'bc1q... or bc1p... (mainnet address)';
+        } else if (network === 'regtest') {
+            destInput.placeholder = 'bcrt1q... or bcrt1p... (regtest address)';
+        } else {
+            destInput.placeholder = 'tb1q... or tb1p... (testnet/signet address)';
+        }
+
+        // Reset last block height to show updates
+        lastBlockHeight = null;
+
+        // Update connection immediately
+        refreshNetworkData();
+
+        // Update time estimate
+        updateTimeEstimate();
+    }
+
+    // Modal functions
+    function openWelcomeModal() {
+        document.getElementById('welcome-modal').classList.add('active');
+    }
+
+    function closeWelcomeModal() {
+        document.getElementById('welcome-modal').classList.remove('active');
+        localStorage.setItem('welcomeModalSeen', 'true');
+    }
+
+    function checkWelcomeModal() {
+        if (!localStorage.getItem('welcomeModalSeen')) {
+            openWelcomeModal();
+        }
+    }
+
+    // ============================================================================
+    // NETWORK API FUNCTIONS
+    // ============================================================================
+
+    async function getApiUrl(network) {
+        return NETWORKS[network].api;
+    }
+
+    async function refreshNetworkData() {
+        const network = getSelectedNetwork();
+        const api = NETWORKS[network].api;
+
+        try {
+            let response;
+            if (network === 'regtest') {
+                response = await fetch(api + '/block/height');
+            } else {
+                response = await fetch(api + '/blocks/tip/height');
+            }
+
+            if (response.ok) {
+                let height;
+                if (network === 'regtest') {
+                    const data = await response.json();
+                    height = data.height;
+                } else {
+                    height = parseInt(await response.text());
+                }
+
+                document.getElementById('status-indicator').classList.add('connected');
+                document.getElementById('status-text').textContent = network.charAt(0).toUpperCase() + network.slice(1);
+                document.getElementById('header-block-height').textContent = height.toLocaleString();
+                document.getElementById('current-height').textContent = height.toLocaleString();
+                document.getElementById('live-indicator').style.display = 'inline-block';
+
+                // Update time estimate if block changed
+                if (lastBlockHeight !== height) {
+                    lastBlockHeight = height;
+                    updateTimeEstimate();
+                }
+
+                // Update fee suggestions
+                await updateFeeRates(network);
+            } else {
+                throw new Error('Connection failed');
+            }
+        } catch (error) {
+            document.getElementById('status-indicator').classList.remove('connected');
+            document.getElementById('status-text').textContent = 'Disconnected';
+            document.getElementById('header-block-height').textContent = '--';
+            document.getElementById('current-height').textContent = '--';
+            document.getElementById('live-indicator').style.display = 'none';
+        }
+    }
+
+    function startAutoRefresh() {
+        // Clear any existing interval
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+        }
+        // Refresh every 1 second
+        refreshInterval = setInterval(refreshNetworkData, 1000);
+    }
+
+    function stopAutoRefresh() {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+        }
+    }
+
+    // Alias for backward compatibility
+    async function testConnection() {
+        await refreshNetworkData();
+    }
+
+    async function updateFeeRates(network) {
+        if (!network) network = getSelectedNetwork();
+        const api = NETWORKS[network].api;
+
+        try {
+            let response;
+            if (network === 'regtest') {
+                // Regtest uses our proxy
+                response = await fetch(api + '/fees/recommended');
+            } else {
+                // mempool.space uses /v1/fees/recommended
+                response = await fetch(api + '/v1/fees/recommended');
+            }
+
+            if (response.ok) {
+                const fees = await response.json();
+                feeRates = {
+                    fast: fees.fastestFee || 10,
+                    medium: fees.halfHourFee || 5,
+                    slow: fees.economyFee || 1
+                };
+
+                document.getElementById('fee-fast').textContent = feeRates.fast + ' sat/vB';
+                document.getElementById('fee-medium').textContent = feeRates.medium + ' sat/vB';
+                document.getElementById('fee-slow').textContent = feeRates.slow + ' sat/vB';
+            }
+        } catch (error) {
+            // Silently fail, keep defaults
+            console.log('Fee fetch error:', error.message);
+        }
+    }
+
+    function setFeeRate(level) {
+        document.getElementById('fee-rate').value = feeRates[level];
+    }
+
+    async function fetchUTXOsFromAPI(address, network) {
+        const api = NETWORKS[network].api;
+
+        try {
+            let response;
+            if (network === 'regtest') {
+                response = await fetch(api + '/utxos/' + encodeURIComponent(address));
+            } else {
+                response = await fetch(api + '/address/' + address + '/utxo');
+            }
+
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(error);
+            }
+
+            return await response.json();
+        } catch (error) {
+            throw new Error('Failed to fetch UTXOs: ' + error.message);
+        }
+    }
+
+    async function broadcastTx(txHex, network) {
+        const api = NETWORKS[network].api;
+
+        try {
+            const response = await fetch(api + '/tx', {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: txHex
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(error);
+            }
+
+            return await response.text();
+        } catch (error) {
+            throw new Error('Broadcast failed: ' + error.message);
+        }
+    }
+
+    // ============================================================================
+    // BITCOIN CRYPTOGRAPHIC FUNCTIONS (using tapscript library)
+    // ============================================================================
+
+    function generatePrivateKey() {
+        const bytes = new Uint8Array(32);
+        crypto.getRandomValues(bytes);
+        return bytes;
+    }
+
+    function derivePublicKey(privateKeyBytes) {
+        // Use noble-secp256k1 for key derivation
+        const secp = window.nobleSecp256k1;
+
+        if (!secp) {
+            throw new Error('Secp256k1 library not loaded. Please wait for page to fully load.');
+        }
+
+        // Get compressed public key (33 bytes with prefix)
+        const pubKeyCompressed = secp.getPublicKey(privateKeyBytes, true);
+
+        // For Taproot/Tapscript, we need x-only pubkey (32 bytes, without 02/03 prefix)
+        // BIP-342 requires x-only pubkeys for OP_CHECKSIG/OP_CHECKSIGVERIFY
+        const xOnlyPubKey = pubKeyCompressed.slice(1); // Remove the 02/03 prefix byte
+
+        return bytesToHex(xOnlyPubKey);
+    }
+
+    // WIF encoding using base58check
+    async function privateKeyToWIF(privateKeyBytes, network) {
+        const prefix = NETWORKS[network].wifPrefix;
+
+        // Compose: prefix + privkey + 0x01 (compressed)
+        const payload = new Uint8Array(34);
+        payload[0] = prefix;
+        payload.set(privateKeyBytes, 1);
+        payload[33] = 0x01; // Compressed flag
+
+        // Calculate checksum (first 4 bytes of double SHA256)
+        const hash1 = await sha256(payload);
+        const hash2 = await sha256(hash1);
+        const checksum = hash2.slice(0, 4);
+
+        // Concat payload + checksum
+        const full = new Uint8Array(38);
+        full.set(payload);
+        full.set(checksum, 34);
+
+        // Base58 encode
+        return base58Encode(full);
+    }
+
+    async function sha256(data) {
+        const buffer = await crypto.subtle.digest('SHA-256', data);
+        return new Uint8Array(buffer);
+    }
+
+    async function doubleSha256(data) {
+        const first = await sha256(data);
+        return await sha256(first);
+    }
+
+    // Base58 encoding
+    const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+    function base58Encode(bytes) {
+        let num = BigInt('0x' + bytesToHex(bytes));
+        let result = '';
+
+        while (num > 0n) {
+            const remainder = num % 58n;
+            num = num / 58n;
+            result = BASE58_ALPHABET[Number(remainder)] + result;
+        }
+
+        // Add leading zeros
+        for (let i = 0; i < bytes.length && bytes[i] === 0; i++) {
+            result = '1' + result;
+        }
+
+        return result;
+    }
+
+    function base58Decode(str) {
+        let num = 0n;
+        for (const char of str) {
+            const idx = BASE58_ALPHABET.indexOf(char);
+            if (idx === -1) throw new Error('Invalid base58 character');
+            num = num * 58n + BigInt(idx);
+        }
+
+        // Convert to bytes
+        let hex = num.toString(16);
+        if (hex.length % 2) hex = '0' + hex;
+
+        const bytes = hexToBytes(hex);
+
+        // Add leading zeros
+        const leadingZeros = str.match(/^1*/)[0].length;
+        const result = new Uint8Array(leadingZeros + bytes.length);
+        result.set(bytes, leadingZeros);
+
+        return result;
+    }
+
+    async function wifToPrivateKey(wif) {
+        try {
+            const decoded = base58Decode(wif);
+
+            // Verify checksum
+            const payload = decoded.slice(0, -4);
+            const checksum = decoded.slice(-4);
+            const hash = await doubleSha256(payload);
+
+            for (let i = 0; i < 4; i++) {
+                if (hash[i] !== checksum[i]) {
+                    throw new Error('Invalid WIF checksum');
+                }
+            }
+
+            // First byte is prefix (0x80 mainnet, 0xef testnet/regtest)
+            // Last byte might be 0x01 for compressed
+            let privkey;
+            if (payload.length === 34 && payload[33] === 0x01) {
+                // Compressed
+                privkey = payload.slice(1, 33);
+            } else if (payload.length === 33) {
+                // Uncompressed
+                privkey = payload.slice(1, 33);
+            } else {
+                throw new Error('Invalid WIF length');
+            }
+
+            const network = payload[0] === 0x80 ? 'mainnet' : 'regtest';
+            return { privateKey: privkey, network };
+        } catch (e) {
+            throw new Error('Invalid WIF format: ' + e.message);
+        }
+    }
+
+    // ============================================================================
+    // TAPROOT ADDRESS CREATION
+    // ============================================================================
+
+    function createTaprootAddress(publicKeyHex, locktime, network) {
+        const { Address, Script, Tap } = window.tapscript;
+
+        // Encode locktime as proper Bitcoin Script integer (little-endian, signed)
+        const locktimeHex = encodeScriptInt(locktime);
+
+        // Build the timelock script: <pubkey> OP_CHECKSIGVERIFY <locktime> OP_CHECKLOCKTIMEVERIFY
+        // In script assembly: [ pubkey, 'OP_CHECKSIGVERIFY', locktime_bytes, 'OP_CHECKLOCKTIMEVERIFY' ]
+        const timelockScript = [
+            publicKeyHex,
+            'OP_CHECKSIGVERIFY',
+            locktimeHex,  // Use hex-encoded bytes instead of number
+            'OP_CHECKLOCKTIMEVERIFY'
+        ];
+
+        // Create tap tree with NUMS as internal key
+        const numsKey = NUMS_KEY_HEX;
+
+        // Get the tapleaf using encodeScript
+        const tapleaf = Tap.encodeScript(timelockScript);
+
+        // Get the taptree (single leaf)
+        const [tpubkey, cblock] = Tap.getPubKey(numsKey, { target: tapleaf });
+
+        // Map our network names to tapscript network names
+        const tapscriptNetwork = {
+            'mainnet': 'main',
+            'testnet': 'testnet',
+            'signet': 'signet',
+            'regtest': 'regtest'
+        }[network] || 'regtest';
+
+        // Generate address (tapscript uses network name, not HRP)
+        const address = Address.p2tr.fromPubKey(tpubkey, tapscriptNetwork);
+
+        // Build descriptor string
+        const descriptor = `tr(${numsKey},and_v(v:pk(${publicKeyHex}),after(${locktime})))`;
+
+        return {
+            address,
+            descriptor,
+            scriptPubKey: Address.toScriptPubKey(address),
+            tweakedPubKey: tpubkey,
+            controlBlock: cblock,
+            tapleaf,
+            script: timelockScript,
+            internalKey: numsKey
+        };
+    }
+
+    // ============================================================================
+    // ADDRESS GENERATION UI HANDLER
+    // ============================================================================
+
+    async function generateAddress() {
+        showLoading();
+
+        try {
+            const network = getSelectedNetwork();
+            const locktimeInput = document.getElementById('locktime').value;
+            const importKey = document.getElementById('import-privkey').value.trim();
+
+            // Validate locktime
+            const locktime = parseInt(locktimeInput);
+            if (isNaN(locktime) || locktime < 1 || locktime >= 500000000) {
+                throw new Error('Locktime must be a block height between 1 and 499,999,999');
+            }
+
+            let privateKeyBytes;
+
+            if (importKey) {
+                // Parse WIF
+                const parsed = await wifToPrivateKey(importKey);
+                privateKeyBytes = parsed.privateKey;
+            } else {
+                // Generate new key
+                privateKeyBytes = generatePrivateKey();
+            }
+
+            // Derive public key
+            const publicKeyHex = derivePublicKey(privateKeyBytes);
+
+            // Create Taproot address
+            const result = createTaprootAddress(publicKeyHex, locktime, network);
+
+            // Convert private key to WIF
+            const privateKeyWIF = await privateKeyToWIF(privateKeyBytes, network);
+            const privateKeyHex = bytesToHex(privateKeyBytes);
+
+            // Store for later use
+            currentAddressData = {
+                network,
+                address: result.address,
+                descriptor: result.descriptor,
+                locktime,
+                privateKeyWIF,
+                privateKeyHex,
+                publicKeyHex,
+                ...result
+            };
+
+            // Update UI
+            document.getElementById('result-address').value = result.address;
+            document.getElementById('result-descriptor').value = result.descriptor;
+            document.getElementById('result-locktime').value = locktime;
+            document.getElementById('result-privkey-wif').value = privateKeyWIF;
+            document.getElementById('result-privkey-hex').value = privateKeyHex;
+            document.getElementById('result-pubkey').value = publicKeyHex;
+            document.getElementById('lock-target').textContent = locktime;
+
+            document.getElementById('create-results').classList.remove('hidden');
+
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    function downloadBackup() {
+        if (!currentAddressData) {
+            showError('No address generated yet');
+            return;
+        }
+
+        const backup = {
+            network: currentAddressData.network,
+            address: currentAddressData.address,
+            descriptor: currentAddressData.descriptor,
+            locktime: currentAddressData.locktime,
+            privateKeyWIF: currentAddressData.privateKeyWIF,
+            privateKeyHex: currentAddressData.privateKeyHex,
+            publicKeyHex: currentAddressData.publicKeyHex,
+            createdAt: new Date().toISOString(),
+            warning: 'KEEP THIS FILE SECURE! Anyone with the private key can spend your funds after the locktime.'
+        };
+
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `timelock-wallet-${currentAddressData.address.slice(0, 12)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // ============================================================================
+    // UTXO MANAGEMENT
+    // ============================================================================
+
+    async function fetchUTXOs() {
+        const address = document.getElementById('utxo-address').value.trim();
+        const network = getSelectedNetwork();
+
+        if (!address) {
+            showError('Please enter an address to fetch UTXOs from');
+            return;
+        }
+
+        showLoading();
+
+        try {
+            const fetchedUTXOs = await fetchUTXOsFromAPI(address, network);
+
+            if (!fetchedUTXOs || fetchedUTXOs.length === 0) {
+                alert('No UTXOs found for this address.\n\nThis could mean:\n• The address has no funds\n• Transactions are still unconfirmed\n• The address has never received any Bitcoin\n\nYou can also add UTXOs manually below.');
+                utxos = [];
+                renderUTXOList();
+                return;
+            }
+
+            utxos = fetchedUTXOs.map(u => ({
+                txid: u.txid,
+                vout: u.vout,
+                value: u.value,
+                selected: true
+            }));
+
+            renderUTXOList();
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    function addManualUTXO() {
+        const input = document.getElementById('manual-utxo').value.trim();
+
+        if (!input) {
+            showError('Please enter UTXO in format: txid:vout:amount');
+            return;
+        }
+
+        const parts = input.split(':');
+        if (parts.length !== 3) {
+            showError('Invalid format. Use: txid:vout:amount (e.g., abc123...:0:0.1)');
+            return;
+        }
+
+        const txid = parts[0];
+        const vout = parseInt(parts[1]);
+        let value = parts[2];
+
+        // Check if amount has decimal (BTC) or not (sats)
+        if (value.includes('.')) {
+            value = Math.round(parseFloat(value) * 100000000);
+        } else {
+            value = parseInt(value);
+        }
+
+        if (txid.length !== 64 || isNaN(vout) || isNaN(value)) {
+            showError('Invalid UTXO data');
+            return;
+        }
+
+        utxos.push({ txid, vout, value, selected: true });
+        renderUTXOList();
+
+        document.getElementById('manual-utxo').value = '';
+    }
+
+    function renderUTXOList() {
+        const list = document.getElementById('utxo-list');
+
+        if (utxos.length === 0) {
+            list.innerHTML = '<div style="padding: 1rem; color: var(--text-secondary); text-align: center;">No UTXOs loaded.</div>';
+            updateUTXOTotal();
+            return;
+        }
+
+        list.innerHTML = utxos.map((u, i) => `
+            <div class="utxo-item">
+                <input type="checkbox" ${u.selected ? 'checked' : ''} onchange="toggleUTXO(${i})">
+                <span class="txid">${u.txid.slice(0, 16)}...${u.txid.slice(-8)}:${u.vout}</span>
+                <span class="amount">${u.value.toLocaleString()} sats</span>
+                <button class="secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; margin-left: 0.5rem;" onclick="removeUTXO(${i})">X</button>
+            </div>
+        `).join('');
+
+        updateUTXOTotal();
+    }
+
+    function toggleUTXO(index) {
+        utxos[index].selected = !utxos[index].selected;
+        updateUTXOTotal();
+    }
+
+    function removeUTXO(index) {
+        utxos.splice(index, 1);
+        renderUTXOList();
+    }
+
+    function updateUTXOTotal() {
+        const selected = utxos.filter(u => u.selected);
+        const total = selected.reduce((sum, u) => sum + u.value, 0);
+
+        document.getElementById('utxo-count').textContent = selected.length;
+        document.getElementById('total-sats').textContent = total.toLocaleString();
+    }
+
+    // ============================================================================
+    // TRANSACTION CREATION AND SIGNING
+    // ============================================================================
+
+    function parseDescriptor(descriptor) {
+        // Parse: tr(INTERNAL_KEY,and_v(v:pk(PUBKEY),after(LOCKTIME)))
+        const match = descriptor.match(/tr\(([0-9a-fA-F]+),and_v\(v:pk\(([0-9a-fA-F]+)\),after\((\d+)\)\)\)/);
+
+        if (!match) {
+            throw new Error('Invalid descriptor format');
+        }
+
+        return {
+            internalKey: match[1],
+            publicKey: match[2],
+            locktime: parseInt(match[3])
+        };
+    }
+
+    async function createTransaction() {
+        showLoading();
+
+        try {
+            const network = getSelectedNetwork();
+            const descriptor = document.getElementById('spend-descriptor').value.trim();
+            const privkeyInput = document.getElementById('spend-privkey').value.trim();
+            const destination = document.getElementById('destination').value.trim();
+            const feeRate = parseInt(document.getElementById('fee-rate').value);
+
+            // Validation
+            if (!descriptor) throw new Error('Descriptor is required');
+            if (!privkeyInput) throw new Error('Private key is required');
+            if (!destination) throw new Error('Destination address is required');
+            if (isNaN(feeRate) || feeRate < 1) throw new Error('Invalid fee rate');
+
+            const selectedUTXOs = utxos.filter(u => u.selected);
+            if (selectedUTXOs.length === 0) throw new Error('No UTXOs selected');
+
+            // Parse descriptor
+            const { internalKey, publicKey, locktime } = parseDescriptor(descriptor);
+
+            // Parse private key
+            let privateKeyBytes;
+            if (privkeyInput.length === 64) {
+                // Hex format
+                privateKeyBytes = hexToBytes(privkeyInput);
+            } else {
+                // WIF format
+                const parsed = await wifToPrivateKey(privkeyInput);
+                privateKeyBytes = parsed.privateKey;
+            }
+
+            // Verify public key matches
+            const derivedPubKey = derivePublicKey(privateKeyBytes);
+            if (derivedPubKey !== publicKey) {
+                throw new Error('Private key does not match the public key in descriptor');
+            }
+
+            // Build and sign transaction
+            const result = await buildAndSignTransaction(
+                privateKeyBytes,
+                publicKey,
+                internalKey,
+                locktime,
+                selectedUTXOs,
+                destination,
+                feeRate,
+                network
+            );
+
+            // Update UI
+            document.getElementById('result-txid').value = result.txid;
+            document.getElementById('result-vsize').textContent = result.vsize;
+            document.getElementById('result-fee').textContent = result.fee;
+            document.getElementById('result-output').textContent = result.outputAmount;
+            document.getElementById('result-rawtx').value = result.rawTx;
+
+            document.getElementById('spend-results').classList.remove('hidden');
+
+            // Store for broadcast
+            window.pendingTx = result;
+
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    async function buildAndSignTransaction(privateKeyBytes, publicKey, internalKey, locktime, utxos, destination, feeRate, network) {
+        const { Address, Script, Tap, Tx, Signer, util } = window.tapscript;
+
+        // Calculate total input
+        const totalInput = utxos.reduce((sum, u) => sum + u.value, 0);
+
+        // Encode locktime as proper Bitcoin Script integer (little-endian, signed)
+        const locktimeHex = encodeScriptInt(locktime);
+
+        // Build the timelock script
+        const timelockScript = [
+            publicKey,
+            'OP_CHECKSIGVERIFY',
+            locktimeHex,  // Use hex-encoded bytes instead of number
+            'OP_CHECKLOCKTIMEVERIFY'
+        ];
+
+        // Get tapleaf and control block using encodeScript
+        const tapleaf = Tap.encodeScript(timelockScript);
+        const [tpubkey, cblock] = Tap.getPubKey(internalKey, { target: tapleaf });
+
+        // Map network name for tapscript
+        const tapscriptNetwork = {
+            'mainnet': 'main',
+            'testnet': 'testnet',
+            'signet': 'signet',
+            'regtest': 'regtest'
+        }[network] || 'regtest';
+
+        // Get script pubkey for the locked address
+        const lockedAddress = Address.p2tr.fromPubKey(tpubkey, tapscriptNetwork);
+        const scriptPubKey = Address.toScriptPubKey(lockedAddress);
+
+        // Decode destination address to script pubkey
+        const destScriptPubKey = Address.toScriptPubKey(destination);
+
+        // Estimate transaction size for fee calculation
+        // Taproot input: ~57.5 vbytes with script path spend
+        // P2TR output: 43 vbytes
+        // Overhead: 10.5 vbytes
+        const estimatedVsize = 10.5 + (57.5 * utxos.length) + 43;
+        const estimatedFee = Math.ceil(estimatedVsize * feeRate);
+
+        let outputAmount = totalInput - estimatedFee;
+
+        // Check dust threshold (330 sats for P2TR)
+        if (outputAmount < 330) {
+            throw new Error(`Output amount (${outputAmount} sats) is below dust threshold (330 sats). Need more funds or lower fee.`);
+        }
+
+        // Build transaction inputs
+        const vin = utxos.map(u => ({
+            txid: u.txid,
+            vout: u.vout,
+            prevout: {
+                value: u.value,
+                scriptPubKey: scriptPubKey
+            },
+            sequence: 0xfffffffe // Enable locktime
+        }));
+
+        // Build transaction output
+        const vout = [{
+            value: outputAmount,
+            scriptPubKey: destScriptPubKey
+        }];
+
+        // Create transaction template
+        const txData = {
+            version: 2,
+            locktime: locktime,
+            vin,
+            vout
+        };
+
+        // Sign each input
+        const privateKeyHex = bytesToHex(privateKeyBytes);
+
+        // Encode the script for the witness (strip length prefix)
+        const encodedScriptWithLen = Script.encode(timelockScript).hex;
+        // Script.encode includes a varint length prefix - we need raw script bytes for witness
+        // For scripts < 253 bytes, the length is 1 byte (2 hex chars)
+        const rawScriptHex = encodedScriptWithLen.slice(2);
+
+        for (let i = 0; i < vin.length; i++) {
+            // Sign with script path using the tapleaf extension
+            const sig = Signer.taproot.sign(privateKeyHex, txData, i, {
+                extension: tapleaf
+            });
+
+            // Build witness: [signature, script, control_block]
+            txData.vin[i].witness = [
+                sig.hex,
+                rawScriptHex,
+                cblock
+            ];
+        }
+
+        // Serialize and calculate final size
+        const rawTx = Tx.encode(txData).hex;
+        const txBytes = hexToBytes(rawTx);
+
+        // Calculate actual vsize
+        // For segwit: vsize = (weight + 3) / 4, weight = base * 3 + total
+        // Simplified: roughly (len - witness_len*3/4)
+        const actualVsize = Math.ceil(txBytes.length * 0.25 + txBytes.length * 0.75);
+
+        // Recalculate fee with actual size
+        const actualFee = Math.ceil(actualVsize * feeRate);
+
+        // If fee changed significantly, rebuild transaction
+        if (Math.abs(actualFee - estimatedFee) > feeRate) {
+            outputAmount = totalInput - actualFee;
+
+            if (outputAmount < 330) {
+                throw new Error(`Output amount (${outputAmount} sats) is below dust threshold after fee recalculation.`);
+            }
+
+            // Rebuild with correct output
+            txData.vout[0].value = outputAmount;
+
+            // Re-sign
+            for (let i = 0; i < vin.length; i++) {
+                const sig = Signer.taproot.sign(privateKeyHex, txData, i, {
+                    extension: tapleaf
+                });
+
+                txData.vin[i].witness = [
+                    sig.hex,
+                    rawScriptHex,
+                    cblock
+                ];
+            }
+        }
+
+        // Final serialization
+        const finalTx = Tx.encode(txData);
+        const txid = finalTx.digest.hex;
+
+        return {
+            rawTx: finalTx.hex,
+            txid,
+            vsize: actualVsize,
+            fee: totalInput - outputAmount,
+            outputAmount,
+            network
+        };
+    }
+
+    async function broadcastTransaction() {
+        if (!window.pendingTx) {
+            showError('No transaction to broadcast');
+            return;
+        }
+
+        const network = window.pendingTx.network;
+
+        // Confirmation for mainnet
+        if (network === 'mainnet') {
+            if (!confirm('You are about to broadcast a transaction on MAINNET. This is IRREVERSIBLE. Continue?')) {
+                return;
+            }
+        }
+
+        showLoading();
+
+        try {
+            const txid = await broadcastTx(window.pendingTx.rawTx, network);
+
+            document.getElementById('broadcast-txid').textContent = txid;
+
+            const explorer = NETWORKS[network].explorer;
+            if (explorer) {
+                const link = document.getElementById('explorer-link');
+                link.href = explorer + txid;
+                link.style.display = 'inline';
+            } else {
+                document.getElementById('explorer-link').style.display = 'none';
+            }
+
+            document.getElementById('broadcast-result').style.display = 'block';
+            document.getElementById('broadcast-btn').disabled = true;
+
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // ============================================================================
+    // TIME ESTIMATION
+    // ============================================================================
+
+    function updateTimeEstimate() {
+        const locktimeInput = document.getElementById('locktime').value;
+        const currentHeightText = document.getElementById('current-height').textContent;
+        const network = getSelectedNetwork();
+        const estimateDiv = document.getElementById('time-estimate');
+
+        const locktime = parseInt(locktimeInput);
+        const currentHeight = parseInt(currentHeightText);
+
+        if (isNaN(locktime) || isNaN(currentHeight) || locktime <= 0) {
+            estimateDiv.style.display = 'none';
+            return;
+        }
+
+        document.getElementById('lock-target').textContent = locktime;
+
+        const blocksUntil = locktime - currentHeight;
+
+        if (blocksUntil <= 0) {
+            document.getElementById('blocks-until').textContent = '0 (unlocked!)';
+            document.getElementById('time-until').textContent = 'Already unlocked';
+            estimateDiv.style.display = 'block';
+            return;
+        }
+
+        document.getElementById('blocks-until').textContent = blocksUntil.toLocaleString();
+
+        // Calculate time estimate (10 min per block on mainnet/testnet/signet)
+        // Regtest is instant
+        if (network === 'regtest') {
+            document.getElementById('time-until').textContent = `${blocksUntil} blocks (instant on regtest)`;
+        } else {
+            const totalMinutes = blocksUntil * 10;
+            const days = Math.floor(totalMinutes / (60 * 24));
+            const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+            const minutes = totalMinutes % 60;
+
+            let timeStr = '';
+            if (days > 0) timeStr += `${days}d `;
+            if (hours > 0 || days > 0) timeStr += `${hours}h `;
+            timeStr += `${minutes}m`;
+
+            // Also show approximate date
+            const unlockDate = new Date(Date.now() + totalMinutes * 60 * 1000);
+            const dateStr = unlockDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            document.getElementById('time-until').textContent = `${timeStr} (approx. ${dateStr})`;
+        }
+
+        estimateDiv.style.display = 'block';
+    }
+
+    // ============================================================================
+    // INITIALIZATION
+    // ============================================================================
+
+    // Wait for DOM and libraries to load
+    let librariesLoaded = false;
+    let domLoaded = false;
+
+    function initApp() {
+        if (!librariesLoaded || !domLoaded) return;
+
+        // Show welcome modal if first visit
+        checkWelcomeModal();
+
+        // Initial connection and start auto-refresh
+        refreshNetworkData();
+        startAutoRefresh();
+
+        // Update locktime display and time estimate on input
+        document.getElementById('locktime').addEventListener('input', updateTimeEstimate);
+
+        console.log('Bitcoin Timelock Wallet initialized');
+        console.log('Secp256k1:', window.nobleSecp256k1 ? 'loaded' : 'NOT loaded');
+        console.log('Tapscript:', window.tapscript ? 'loaded' : 'NOT loaded');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        domLoaded = true;
+        initApp();
+    });
+
+    window.addEventListener('libraries-loaded', () => {
+        librariesLoaded = true;
+        initApp();
+    });
+
+    // Fallback: check if libraries loaded before event listener was set
+    if (window.nobleSecp256k1 && window.tapscript) {
+        librariesLoaded = true;
+    }
+    </script>
+</body>
+</html>
