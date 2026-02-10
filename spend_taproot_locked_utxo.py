@@ -2,7 +2,10 @@
 """
 Spend a timelocked Taproot (P2TR) UTXO after the locktime has passed.
 
-Uses the embit library for Taproot key path signing.
+Uses the embit library for Taproot SCRIPT PATH signing (not key path).
+Since the internal key is a NUMS point (unspendable), funds can ONLY be spent
+via Script Path, which enforces the timelock condition.
+
 Can broadcast via public APIs (mempool.space, blockstream.info) - no Bitcoin node required.
 """
 
@@ -19,15 +22,20 @@ from embit.transaction import Transaction, TransactionInput, TransactionOutput, 
 from embit.script import Script, Witness
 from embit.ec import PrivateKey
 from embit.networks import NETWORKS
+from embit.hashes import tagged_hash
 
 
 COIN = 100_000_000
 
-# Estimated vsize for P2TR key path spend (1 input, 1 output)
+# secp256k1 curve order
+SECP256K1_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+
+# Estimated vsize for P2TR SCRIPT PATH spend (1 input, 1 output)
+# Script path has larger witness: signature + script + control block
 # Base: 4 (version) + 1 (input count) + 41 (input) + 1 (output count) + 43 (P2TR output) + 4 (locktime) = 94
-# Witness: 1 (items) + 1 (sig len) + 64 (schnorr sig) = 66
-# Weight = 94 * 3 + (94 + 2 + 66) = 444, vsize = ceil(444/4) = 111
-VSIZE_1IN_1OUT_P2TR = 111
+# Witness for script path with CLTV: ~140 bytes (sig + script + control block)
+# Weight = 94 * 4 + 140 = 516, vsize = ceil(516/4) = 129
+VSIZE_1IN_1OUT_P2TR_SCRIPT = 140
 
 # Broadcast API endpoints
 BROADCAST_APIS = {
@@ -99,17 +107,21 @@ def create_and_sign_spend_tx(
     """
     Create and sign a spend transaction for a timelocked Taproot UTXO.
 
-    Uses embit for Taproot KEY PATH signing - no Bitcoin Core needed.
+    Uses embit for Taproot SCRIPT PATH signing - required because the internal
+    key is a NUMS point (unspendable). This ensures the timelock is enforced
+    by the Bitcoin consensus rules, not just by voluntary nLockTime setting.
 
-    The timelock is enforced via the transaction's nLockTime field - the network
-    will reject the transaction as "non-final" until the locktime block is reached.
+    The witness stack for Script Path spend contains:
+    1. Signature (satisfies pk(key) condition)
+    2. The leaf script (and_v(v:pk(key), after(locktime)))
+    3. Control block (proves script is in the taptree)
 
     Args:
         fee_rate: Fee rate in sat/vB
 
     Returns (raw_tx_hex, txid, fee_sat).
     """
-    fee_sat = fee_rate * VSIZE_1IN_1OUT_P2TR
+    fee_sat = fee_rate * VSIZE_1IN_1OUT_P2TR_SCRIPT
     output_amount_sat = amount_sat - fee_sat
     if output_amount_sat <= 0:
         raise ValueError(f"Fee too high ({fee_sat} sats) - output amount would be negative")
@@ -128,20 +140,98 @@ def create_and_sign_spend_tx(
     if not net:
         raise ValueError(f"Unknown network: {network}")
 
-    # Parse private key
+    # Parse private key - we use the UNTWEAKED key for script path signing
     privkey = PrivateKey.from_wif(private_key_wif)
     pubkey = privkey.get_public_key()
 
-    # Get the taptree and compute merkle root for the tweak
+    # Get the taptree
     taptree = d.taptree
     if not taptree:
         raise ValueError("Descriptor has no taptree (script)")
 
+    # Get internal key from descriptor (should be NUMS point)
+    internal_key = d.key
+
+    # Get the leaf from taptree - for single leaf, taptree.tree is the TapLeaf
+    tap_leaf = taptree.tree
+
+    # Get the compiled script bytes from the miniscript
+    script_bytes = tap_leaf.miniscript.compile()
+    leaf_script = Script(script_bytes)
+
+    # Leaf version for tapscript
+    LEAF_VERSION = 0xc0
+
+    # Get the x-only internal pubkey (32 bytes)
+    internal_pubkey_bytes = internal_key.sec()
+    if len(internal_pubkey_bytes) == 33:
+        internal_pubkey_x = internal_pubkey_bytes[1:]  # Strip the prefix byte
+    else:
+        internal_pubkey_x = internal_pubkey_bytes
+
+    # Compute the tweaked output key to determine parity
+    # The tweak is: t = tagged_hash("TapTweak", internal_key_x || merkle_root)
+    # For single leaf: merkle_root = tagged_hash("TapLeaf", leaf_version || script)
     merkle_root = taptree.tweak()
 
-    # Compute the tweaked private key for key path spending
-    # This is: tweaked_privkey = privkey + tagged_hash("TapTweak", pubkey || merkle_root)
-    tweaked_privkey = privkey.taproot_tweak(merkle_root)
+    # Compute the tweaked public key Q = P + t*G
+    # We need to determine if Q has odd y-coordinate for the control block parity bit
+    # Note: embit's taproot_tweak normalizes to even y, but we need the RAW parity
+
+    # Compute the tweak scalar
+    tweak_bytes = tagged_hash("TapTweak", internal_pubkey_x + merkle_root)
+
+    # To determine parity, we need to compute P + t*G and check y's parity
+    # We'll use a direct computation since embit normalizes the result
+    # secp256k1 field prime
+    p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+
+    # Get internal key as point (with even y)
+    p_x_int = int.from_bytes(internal_pubkey_x, 'big')
+    y_sq = (pow(p_x_int, 3, p) + 7) % p
+    p_y = pow(y_sq, (p + 1) // 4, p)
+    if p_y % 2 == 1:
+        p_y = p - p_y  # Make y even (x-only convention)
+
+    # Compute tweak*G
+    t = int.from_bytes(tweak_bytes, 'big')
+    G_x = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798
+    G_y = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8
+
+    def point_add(x1, y1, x2, y2):
+        if x1 is None:
+            return x2, y2
+        if x2 is None:
+            return x1, y1
+        if x1 == x2 and y1 == (p - y2) % p:
+            return None, None
+        if x1 == x2 and y1 == y2:
+            lam = (3 * x1 * x1) * pow(2 * y1, p - 2, p) % p
+        else:
+            lam = (y2 - y1) * pow(x2 - x1, p - 2, p) % p
+        x3 = (lam * lam - x1 - x2) % p
+        y3 = (lam * (x1 - x3) - y1) % p
+        return x3, y3
+
+    def scalar_mult(k, x, y):
+        rx, ry = None, None
+        while k:
+            if k & 1:
+                rx, ry = point_add(rx, ry, x, y)
+            x, y = point_add(x, y, x, y)
+            k >>= 1
+        return rx, ry
+
+    tG_x, tG_y = scalar_mult(t, G_x, G_y)
+    _, Q_y = point_add(p_x_int, p_y, tG_x, tG_y)
+
+    # The parity bit is 1 if Q has odd y
+    parity_bit = 1 if Q_y % 2 == 1 else 0
+
+    # Build control block: (leaf_version | parity_bit) || internal_key_x || merkle_path
+    # For single leaf tree, merkle_path is empty
+    control_byte = LEAF_VERSION | parity_bit
+    control_block = bytes([control_byte]) + internal_pubkey_x
 
     # Parse previous txid (embit handles byte order internally)
     prev_txid = bytes.fromhex(txid)
@@ -156,20 +246,39 @@ def create_and_sign_spend_tx(
         vout=[TransactionOutput(output_amount_sat, Script.from_address(destination))]
     )
 
-    # Create PSBT to compute the sighash
-    psbt = PSBT(tx)
-    inp = psbt.inputs[0]
-    inp.witness_utxo = TransactionOutput(amount_sat, d.script_pubkey())
+    # Compute sighash for taproot SCRIPT PATH spending
+    # ext_flag=1 indicates script path spend
+    # script parameter provides the leaf script for the sighash
+    script_pubkey = d.script_pubkey()
+    sighash = tx.sighash_taproot(
+        input_index=0,
+        script_pubkeys=[script_pubkey],
+        values=[amount_sat],
+        sighash=SIGHASH.DEFAULT,
+        ext_flag=1,  # Script path spend
+        script=leaf_script,
+        leaf_version=LEAF_VERSION,
+    )
 
-    # Compute the sighash for taproot key path spending
-    sighash = psbt.sighash(0, sighash=SIGHASH.DEFAULT)
+    # Sign with the UNTWEAKED private key (script path uses original key)
+    # BIP340 requires signing with key that has even y-coordinate
+    pubkey_bytes = pubkey.sec()
+    if pubkey_bytes[0] == 0x03:  # Odd y-coordinate
+        # Negate the private key
+        negated_secret = SECP256K1_ORDER - int.from_bytes(privkey.secret, 'big')
+        signing_key = PrivateKey(negated_secret.to_bytes(32, 'big'))
+    else:
+        signing_key = privkey
 
-    # Sign with the tweaked private key using Schnorr signature
-    sig = tweaked_privkey.schnorr_sign(sighash)
+    sig = signing_key.schnorr_sign(sighash)
 
-    # Key path witness: just the 64-byte Schnorr signature
-    # (No script or control block needed for key path spending)
-    witness = Witness([sig.serialize()])
+    # Build the witness for script path spending:
+    # [signature, script, control_block]
+    witness = Witness([
+        sig.serialize(),           # 64-byte Schnorr signature
+        script_bytes,              # The script being executed (raw bytes)
+        control_block              # Control block
+    ])
     tx.vin[0].witness = witness
 
     # Serialize the final transaction
@@ -186,6 +295,18 @@ def create_and_sign_spend_tx(
     new_txid = hashlib.sha256(hashlib.sha256(tx_bytes).digest()).digest()[::-1].hex()
 
     return raw_tx, new_txid, fee_sat
+
+
+def encode_compact_size(n: int) -> bytes:
+    """Encode an integer as Bitcoin's compact size (varint)."""
+    if n < 0xfd:
+        return bytes([n])
+    elif n <= 0xffff:
+        return bytes([0xfd]) + n.to_bytes(2, 'little')
+    elif n <= 0xffffffff:
+        return bytes([0xfe]) + n.to_bytes(4, 'little')
+    else:
+        return bytes([0xff]) + n.to_bytes(8, 'little')
 
 
 def main():
@@ -270,9 +391,9 @@ Fee rate: check https://mempool.space/fees for current rates.
             network=embit_network,
         )
 
-        print(f"Transaction created!")
+        print(f"Transaction created (Script Path spend)!")
         print(f"TXID: {new_txid}")
-        print(f"Fee:  {fee_sat} sats ({args.fee_rate} sat/vB × {VSIZE_1IN_1OUT_P2TR} vB)")
+        print(f"Fee:  {fee_sat} sats ({args.fee_rate} sat/vB × {VSIZE_1IN_1OUT_P2TR_SCRIPT} vB)")
         print()
         print(f"Raw transaction ({len(raw_tx)//2} bytes):")
         print(raw_tx)

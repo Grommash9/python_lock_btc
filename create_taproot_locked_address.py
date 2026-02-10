@@ -4,6 +4,10 @@ Create a timelocked Taproot (P2TR) address using CHECKLOCKTIMEVERIFY.
 
 Uses the embit library for proper BIP340/341/342 implementation.
 The generated address can only be spent after the specified block height.
+
+SECURITY: Uses a NUMS (Nothing Up My Sleeve) point as the internal key,
+making Key Path spending impossible. Funds can ONLY be spent via Script Path
+after the timelock expires. This provides cryptographically enforced timelocks.
 """
 
 import argparse
@@ -12,8 +16,16 @@ import sys
 
 from embit import bech32
 from embit.descriptor import Descriptor
-from embit.ec import PrivateKey
+from embit.ec import PrivateKey, PublicKey
 from embit.networks import NETWORKS
+
+
+# NUMS point (Nothing Up My Sleeve) - an unspendable internal key
+# This is the x-coordinate of a point where nobody knows the discrete log.
+# Derived as: lift_x(SHA256(SHA256("TapTweak")||SHA256("TapTweak")||encode(G)))
+# Using the standard from BIP-0341 recommendation for provably unspendable keys.
+# This specific point is SHA256(generator_point_G_compressed) = H
+NUMS_KEY_HEX = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
 
 
 def create_taproot_locked_address(
@@ -26,6 +38,10 @@ def create_taproot_locked_address(
 
     Uses miniscript: and_v(v:pk(key),after(locktime))
     This requires both a valid signature AND the timelock to have passed.
+
+    SECURITY: The internal key is a NUMS point (unspendable), forcing all spends
+    to go through the Script Path where the timelock is enforced. This prevents
+    the owner from bypassing the timelock via Key Path spending.
     """
     # Generate or use provided private key
     if private_key_hex:
@@ -38,9 +54,9 @@ def create_taproot_locked_address(
     pubkey_hex = pubkey.sec().hex()  # Compressed pubkey for descriptor
 
     # Build the Taproot descriptor with CLTV timelock
-    # tr(internal_key, and_v(v:pk(key), after(locktime)))
-    # Using the same key as internal key and script key for simplicity
-    desc_str = f"tr({pubkey_hex},and_v(v:pk({pubkey_hex}),after({locktime})))"
+    # tr(NUMS_KEY, and_v(v:pk(key), after(locktime)))
+    # NUMS_KEY is unspendable, forcing Script Path spend with timelock enforcement
+    desc_str = f"tr({NUMS_KEY_HEX},and_v(v:pk({pubkey_hex}),after({locktime})))"
 
     descriptor = Descriptor.from_string(desc_str)
 
@@ -62,6 +78,7 @@ def create_taproot_locked_address(
         "private_key_hex": privkey.secret.hex(),
         "private_key_wif": privkey.wif(net),
         "public_key_hex": pubkey_hex,
+        "internal_key": NUMS_KEY_HEX,
         "script_pubkey_hex": script_pubkey.data.hex(),
         "tweak_hex": tweak.hex() if tweak else "",
     }
@@ -127,11 +144,15 @@ Taproot addresses start with:
     )
 
     print("=" * 70)
-    print("TAPROOT TIMELOCKED ADDRESS CREATED")
+    print("TAPROOT TIMELOCKED ADDRESS CREATED (NUMS-SECURED)")
     print("=" * 70)
     print(f"Network:            {result['network']}")
     print(f"Locktime (block):   {result['locktime']}")
     print(f"Address:            {result['address']}")
+    print()
+    print("--- SECURITY INFO ---")
+    print(f"Internal Key:       {result['internal_key']} (NUMS - unspendable)")
+    print("Key Path Spend:     IMPOSSIBLE (timelock cannot be bypassed)")
     print()
     print("--- SAVE THIS INFORMATION ---")
     print(f"Descriptor:         {result['descriptor']}")
@@ -141,7 +162,7 @@ Taproot addresses start with:
     print("=" * 70)
     print()
     print(f"Send BTC to: {result['address']}")
-    print(f"Funds spendable after block {result['locktime']}")
+    print(f"Funds spendable after block {result['locktime']} (ENFORCED - no bypass possible)")
 
 
 if __name__ == "__main__":
