@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Full end-to-end Playwright tests for the Bitcoin Timelock Wallet.
+Full end-to-end Playwright tests for the Bitcoin Vault.
 Tests the complete flow: create address, fund, fail before lock, succeed after lock.
+Updated for the new modern crypto design.
 """
 import asyncio
 import requests
@@ -55,10 +56,142 @@ def broadcast_tx(tx_hex):
     return response.text, None
 
 
+async def test_early_withdrawal_error():
+    """Test that the web app shows proper error for early withdrawal attempts."""
+    print("=" * 70)
+    print("TEST: Early Withdrawal Error Detection")
+    print("=" * 70)
+
+    # Check proxy is running
+    try:
+        height = get_block_height()
+        print(f"\n[Setup] Connected to regtest. Current block: {height}")
+    except Exception as e:
+        print(f"\n[FAIL] Cannot connect to proxy: {e}")
+        return False
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+
+        # Handle dialogs - capture the error message
+        dialog_messages = []
+
+        async def handle_dialog(dialog):
+            dialog_messages.append(dialog.message)
+            print(f"[Dialog] {dialog.message[:100]}...")
+            await dialog.accept()
+
+        page.on("dialog", handle_dialog)
+
+        # Navigate to the page
+        print("\n[Step 1] Loading web app...")
+        await page.goto(WEB_APP_URL)
+        await page.wait_for_load_state("networkidle")
+        await asyncio.sleep(2)
+
+        # Close welcome modal if visible
+        modal_visible = await page.is_visible("#welcome-modal.active")
+        if modal_visible:
+            await page.click(".modal-close")
+            await asyncio.sleep(0.5)
+            print("[OK] Closed welcome modal")
+
+        # Select regtest network
+        print("\n[Step 2] Selecting regtest network...")
+        await page.select_option("#network-selector", "regtest")
+        await asyncio.sleep(2)
+
+        # Create a vault with locktime far in the future
+        current_height = get_block_height()
+        locktime = current_height + 100  # 100 blocks in the future
+        print(f"\n[Step 3] Creating vault with locktime {locktime} (current: {current_height})")
+        await page.fill("#locktime", str(locktime))
+        await page.click("#generate-btn")
+        await asyncio.sleep(2)
+
+        # Get generated data
+        address = await page.input_value("#result-address")
+        descriptor = await page.input_value("#result-descriptor")
+        privkey_wif = await page.input_value("#result-privkey-wif")
+        print(f"[OK] Vault address: {address}")
+
+        # Fund the address
+        print("\n[Step 4] Funding vault with 0.1 BTC...")
+        txid = send_to_address(address, 0.1)
+        mine_blocks(1)
+        print(f"[OK] Funded: {txid}")
+
+        # Set up withdrawal
+        print("\n[Step 5] Setting up early withdrawal attempt...")
+        await page.fill("#spend-descriptor", descriptor)
+        await page.fill("#spend-privkey", privkey_wif)
+        await page.fill("#utxo-address", address)
+
+        dest_address = btc_rpc("getnewaddress", [])
+        await page.fill("#destination", dest_address)
+
+        # Fetch UTXOs - updated button text
+        await page.click('button:has-text("Find Funds")')
+        await asyncio.sleep(2)
+
+        utxo_count = await page.text_content("#utxo-count")
+        print(f"[OK] Found {utxo_count} UTXO(s)")
+
+        # Try to create transaction - should show error about funds being locked
+        print("\n[Step 6] Attempting early withdrawal (should fail)...")
+        dialog_messages.clear()
+        await page.click("#create-tx-btn")
+        await asyncio.sleep(2)
+
+        # Check for error dialog
+        if dialog_messages:
+            error_msg = dialog_messages[-1]
+            print(f"[OK] Got error dialog")
+
+            # Verify the error message contains the expected information
+            checks = [
+                ("Funds are still locked" in error_msg, "Should mention 'Funds are still locked'"),
+                ("Current block" in error_msg, "Should show current block"),
+                ("Unlock block" in error_msg, "Should show unlock block"),
+                ("Blocks remaining" in error_msg, "Should show blocks remaining"),
+                ("Estimated wait" in error_msg, "Should show estimated wait time"),
+            ]
+
+            all_passed = True
+            for check, msg in checks:
+                status = "PASS" if check else "FAIL"
+                print(f"  [{status}] {msg}")
+                if not check:
+                    all_passed = False
+
+            # Check time formatting includes larger units for 100 blocks
+            # 100 blocks * 10 min = 1000 min = ~16.6 hours
+            if "hour" in error_msg.lower():
+                print(f"  [PASS] Time estimate includes hours")
+            else:
+                print(f"  [WARN] Time estimate may not show hours for 100 blocks")
+
+            if all_passed:
+                print("\n[PASS] Early withdrawal error test passed!")
+            else:
+                print("\n[FAIL] Some checks failed")
+                print(f"Full error message:\n{error_msg}")
+                await browser.close()
+                return False
+        else:
+            print("[FAIL] No error dialog shown - transaction was created when it shouldn't have been")
+            await browser.close()
+            return False
+
+        await browser.close()
+        return True
+
+
 async def test_full_flow():
     """Test the complete timelock wallet flow."""
     print("=" * 70)
-    print("FULL END-TO-END TEST: Bitcoin Timelock Wallet")
+    print("FULL END-TO-END TEST: Bitcoin Vault")
     print("=" * 70)
 
     # Check proxy is running
@@ -80,9 +213,11 @@ async def test_full_flow():
 
         # Handle dialogs
         dialog_messages = []
+
         async def handle_dialog(dialog):
             dialog_messages.append(dialog.message)
             await dialog.accept()
+
         page.on("dialog", handle_dialog)
 
         # Navigate to the page
@@ -103,18 +238,18 @@ async def test_full_flow():
         # Close welcome modal if visible
         modal_visible = await page.is_visible("#welcome-modal.active")
         if modal_visible:
-            await page.click(".modal-close-btn")
+            await page.click(".modal-close")
             await asyncio.sleep(0.5)
             print("[OK] Closed welcome modal")
 
-        # Step 2: Select regtest network (now in header)
+        # Step 2: Select regtest network (in header)
         print("\n[Step 2] Selecting regtest network...")
         await page.select_option("#network-selector", "regtest")
         await asyncio.sleep(2)  # Wait for connection
 
-        # Verify connection
-        status_text = await page.text_content("#status-text")
-        print(f"[OK] Network status: {status_text}")
+        # Verify connection by checking block height is shown
+        block_display = await page.text_content("#header-block-height")
+        print(f"[OK] Network connected, block: {block_display}")
 
         # Step 3: Calculate locktime (current + 5 blocks)
         current_height = get_block_height()
@@ -124,7 +259,7 @@ async def test_full_flow():
         await asyncio.sleep(0.5)
 
         # Step 4: Generate address
-        print("\n[Step 4] Generating timelocked address...")
+        print("\n[Step 4] Creating vault address...")
         await page.click("#generate-btn")
         await asyncio.sleep(2)
 
@@ -143,11 +278,18 @@ async def test_full_flow():
             await browser.close()
             return False
 
-        print(f"[OK] Address: {address}")
-        print(f"[OK] Descriptor: {descriptor[:60]}...")
+        print(f"[OK] Vault Address: {address}")
+        print(f"[OK] Vault Blueprint: {descriptor[:60]}...")
+
+        # Check for the Network-Enforced Lock info box
+        info_box = await page.is_visible(".alert-info")
+        if info_box:
+            info_text = await page.text_content(".alert-info")
+            if "Network-Enforced" in info_text:
+                print("[OK] Network-enforced lock info box displayed")
 
         # Step 5: Fund the address
-        print("\n[Step 5] Funding address with 0.1 BTC...")
+        print("\n[Step 5] Funding vault with 0.1 BTC...")
         try:
             txid = send_to_address(address, 0.1)
             print(f"[OK] Funding TX: {txid}")
@@ -160,10 +302,8 @@ async def test_full_flow():
         mine_blocks(1)
         print(f"[OK] Mined 1 block. Height: {get_block_height()}")
 
-        # Step 6: Manually set up spend section (no more "Use in Spend Section" button)
-        print("\n[Step 6] Setting up spend transaction...")
-
-        # Fill in spend section fields from the create results
+        # Step 6: Set up spend section
+        print("\n[Step 6] Setting up withdrawal...")
         await page.fill("#spend-descriptor", descriptor)
         await page.fill("#spend-privkey", privkey_wif)
         await page.fill("#utxo-address", address)
@@ -173,30 +313,59 @@ async def test_full_flow():
         await page.fill("#destination", dest_address)
         print(f"[OK] Destination: {dest_address}")
 
-        # Fetch UTXOs
-        print("\n[Step 7] Fetching UTXOs...")
-        await page.click('button:has-text("Fetch")')
+        # Fetch UTXOs - button text updated to "Find Funds"
+        print("\n[Step 7] Finding funds...")
+        await page.click('button:has-text("Find Funds")')
         await asyncio.sleep(2)
 
         utxo_count = await page.text_content("#utxo-count")
         total_sats = await page.text_content("#total-sats")
-        print(f"[OK] Found {utxo_count} UTXO(s), total: {total_sats} sats")
+        print(f"[OK] Found {utxo_count} digital bill(s), total: {total_sats} sats")
 
         if utxo_count == "0":
-            print("[FAIL] No UTXOs found")
+            print("[FAIL] No funds found")
             await browser.close()
             return False
 
         # Step 8: Create transaction
-        print("\n[Step 8] Creating spend transaction...")
+        print("\n[Step 8] Preparing withdrawal...")
         dialog_messages.clear()
         await page.click("#create-tx-btn")
         await asyncio.sleep(3)
 
         if dialog_messages:
-            print(f"[FAIL] Error creating TX: {dialog_messages[-1]}")
-            await browser.close()
-            return False
+            # Check if this is a "funds still locked" error (which is expected behavior)
+            if "still locked" in dialog_messages[-1].lower():
+                print(f"[INFO] Got expected 'funds locked' error (current block < locktime)")
+                # Mine blocks to reach locktime
+                current = get_block_height()
+                blocks_needed = locktime - current + 1
+                print(f"[Step 8b] Mining {blocks_needed} blocks to reach locktime...")
+                mine_blocks(blocks_needed)
+                new_height = get_block_height()
+                print(f"[OK] New height: {new_height}")
+
+                # Wait for the web app to update its cached block height
+                # The app polls every second, so wait a bit
+                await asyncio.sleep(3)
+
+                # Verify the page has the updated height
+                page_height = await page.text_content("#header-block-height")
+                print(f"[OK] Page block height updated to: {page_height}")
+
+                # Retry creating transaction
+                dialog_messages.clear()
+                await page.click("#create-tx-btn")
+                await asyncio.sleep(3)
+
+                if dialog_messages:
+                    print(f"[FAIL] Error creating TX: {dialog_messages[-1]}")
+                    await browser.close()
+                    return False
+            else:
+                print(f"[FAIL] Error creating TX: {dialog_messages[-1]}")
+                await browser.close()
+                return False
 
         # Get raw transaction
         raw_tx = await page.input_value("#result-rawtx")
@@ -207,30 +376,21 @@ async def test_full_flow():
 
         tx_vsize = await page.text_content("#result-vsize")
         tx_fee = await page.text_content("#result-fee")
-        print(f"[OK] Transaction created: {tx_vsize} vB, {tx_fee} sat fee")
-        print(f"[OK] Raw TX: {raw_tx[:60]}...")
+        output_amount = await page.text_content("#result-output")
+        print(f"[OK] Transaction prepared: {tx_vsize} vB, {tx_fee} sat fee, {output_amount} sats output")
 
-        # Step 9: Try to broadcast BEFORE locktime (should fail)
-        print(f"\n[Step 9] Trying to broadcast BEFORE locktime (block {get_block_height()} < {locktime})...")
-        txid, error = broadcast_tx(raw_tx)
-        if txid:
-            print(f"[FAIL] Transaction was accepted! Should have been rejected. TXID: {txid}")
-            await browser.close()
-            return False
-        if "non-final" in str(error).lower():
-            print(f"[OK] Correctly rejected with: {error.strip()}")
-        else:
-            print(f"[WARN] Rejected but with unexpected error: {error}")
-
-        # Step 10: Mine blocks to reach locktime
+        # Step 9: Ensure we're past locktime
         current = get_block_height()
-        blocks_needed = locktime - current + 1
-        print(f"\n[Step 10] Mining {blocks_needed} blocks to reach locktime...")
-        new_height = mine_blocks(blocks_needed)
-        print(f"[OK] New height: {new_height} (locktime was {locktime})")
+        if current < locktime:
+            blocks_needed = locktime - current + 1
+            print(f"\n[Step 9] Mining {blocks_needed} blocks to reach locktime...")
+            mine_blocks(blocks_needed)
+            print(f"[OK] Height: {get_block_height()} (locktime was {locktime})")
 
-        # Step 11: Broadcast AFTER locktime (should succeed)
-        print(f"\n[Step 11] Broadcasting AFTER locktime...")
+        # Step 10: Broadcast using slide-to-confirm
+        print(f"\n[Step 10] Broadcasting transaction...")
+
+        # The new UI uses slide-to-confirm, but we can also broadcast via API for testing
         txid, error = broadcast_tx(raw_tx)
         if error:
             print(f"[FAIL] Transaction rejected: {error}")
@@ -251,10 +411,142 @@ async def test_full_flow():
         return True
 
 
+async def test_time_formatting():
+    """Test that time estimates include years, months, days, hours."""
+    print("=" * 70)
+    print("TEST: Time Formatting in Error Messages")
+    print("=" * 70)
+
+    try:
+        height = get_block_height()
+        print(f"\n[Setup] Current block: {height}")
+    except Exception as e:
+        print(f"\n[FAIL] Cannot connect to proxy: {e}")
+        return False
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+
+        dialog_messages = []
+
+        async def handle_dialog(dialog):
+            dialog_messages.append(dialog.message)
+            await dialog.accept()
+
+        page.on("dialog", handle_dialog)
+
+        await page.goto(WEB_APP_URL)
+        await page.wait_for_load_state("networkidle")
+        await asyncio.sleep(2)
+
+        # Close modal
+        modal_visible = await page.is_visible("#welcome-modal.active")
+        if modal_visible:
+            await page.click(".modal-close")
+            await asyncio.sleep(0.5)
+
+        await page.select_option("#network-selector", "regtest")
+        await asyncio.sleep(2)
+
+        # Create vault with locktime ~1 year in future
+        # 1 year = 365 * 24 * 6 blocks = 52,560 blocks (at 10 min/block)
+        current_height = get_block_height()
+        locktime = current_height + 60000  # ~1.14 years
+        print(f"\n[Test] Creating vault with locktime {locktime} ({60000} blocks ahead)")
+        await page.fill("#locktime", str(locktime))
+        await page.click("#generate-btn")
+        await asyncio.sleep(2)
+
+        address = await page.input_value("#result-address")
+        descriptor = await page.input_value("#result-descriptor")
+        privkey_wif = await page.input_value("#result-privkey-wif")
+
+        # Fund minimally
+        send_to_address(address, 0.001)
+        mine_blocks(1)
+
+        # Set up withdrawal
+        await page.fill("#spend-descriptor", descriptor)
+        await page.fill("#spend-privkey", privkey_wif)
+        await page.fill("#utxo-address", address)
+        await page.fill("#destination", btc_rpc("getnewaddress", []))
+
+        await page.click('button:has-text("Find Funds")')
+        await asyncio.sleep(2)
+
+        # Try to withdraw
+        dialog_messages.clear()
+        await page.click("#create-tx-btn")
+        await asyncio.sleep(2)
+
+        if dialog_messages:
+            error_msg = dialog_messages[-1]
+            print(f"\n[OK] Got error message")
+
+            # Check for year/month formatting
+            has_year = "year" in error_msg.lower()
+            has_month = "month" in error_msg.lower()
+
+            print(f"  Contains 'year': {has_year}")
+            print(f"  Contains 'month': {has_month}")
+
+            if has_year:
+                print("[PASS] Time formatting includes years!")
+            else:
+                print("[WARN] Time formatting might not include years for this block count")
+                print(f"Error message: {error_msg}")
+
+            await browser.close()
+            return has_year
+        else:
+            print("[FAIL] No error dialog shown")
+            await browser.close()
+            return False
+
+
 async def main():
-    success = await test_full_flow()
-    exit(0 if success else 1)
+    results = {}
+
+    # Test 1: Early withdrawal error
+    print("\n" + "=" * 70)
+    print("RUNNING TEST 1: Early Withdrawal Error Detection")
+    print("=" * 70)
+    results["early_withdrawal"] = await test_early_withdrawal_error()
+
+    # Test 2: Time formatting
+    print("\n" + "=" * 70)
+    print("RUNNING TEST 2: Time Formatting")
+    print("=" * 70)
+    results["time_formatting"] = await test_time_formatting()
+
+    # Test 3: Full flow
+    print("\n" + "=" * 70)
+    print("RUNNING TEST 3: Full Flow")
+    print("=" * 70)
+    results["full_flow"] = await test_full_flow()
+
+    # Summary
+    print("\n" + "=" * 70)
+    print("TEST SUMMARY")
+    print("=" * 70)
+    all_passed = True
+    for name, passed in results.items():
+        status = "PASS" if passed else "FAIL"
+        print(f"  {name}: {status}")
+        if not passed:
+            all_passed = False
+
+    print("=" * 70)
+    if all_passed:
+        print("ALL TESTS PASSED!")
+    else:
+        print("SOME TESTS FAILED")
+    print("=" * 70)
+
+    return 0 if all_passed else 1
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    exit_code = asyncio.run(main())
+    exit(exit_code)

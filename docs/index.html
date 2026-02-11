@@ -1764,6 +1764,25 @@
         return bytesToHex(new Uint8Array(bytes));
     }
 
+    function formatBlocksToTime(blocks) {
+        const totalMinutes = blocks * 10;
+        const years = Math.floor(totalMinutes / (60 * 24 * 365));
+        const months = Math.floor((totalMinutes % (60 * 24 * 365)) / (60 * 24 * 30));
+        const days = Math.floor((totalMinutes % (60 * 24 * 30)) / (60 * 24));
+        const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+        const minutes = totalMinutes % 60;
+
+        const parts = [];
+        if (years > 0) parts.push(`${years} year${years > 1 ? 's' : ''}`);
+        if (months > 0) parts.push(`${months} month${months > 1 ? 's' : ''}`);
+        if (days > 0) parts.push(`${days} day${days > 1 ? 's' : ''}`);
+        if (hours > 0 && years === 0) parts.push(`${hours} hour${hours > 1 ? 's' : ''}`);
+        if (minutes > 0 && years === 0 && months === 0 && days === 0) parts.push(`${minutes} minute${minutes > 1 ? 's' : ''}`);
+
+        if (parts.length === 0) return '< 1 minute';
+        return '~' + parts.join(', ');
+    }
+
     function showLoading() {
         document.getElementById('loading-overlay').classList.add('active');
     }
@@ -2400,6 +2419,22 @@
 
             const { internalKey, publicKey, locktime } = parseDescriptor(descriptor);
 
+            // Check if funds are still locked (warn user before they waste time)
+            const currentHeight = lastBlockHeight;
+            if (currentHeight && locktime > currentHeight) {
+                const blocksRemaining = locktime - currentHeight;
+                const timeStr = formatBlocksToTime(blocksRemaining);
+
+                throw new Error(
+                    `Funds are still locked!\n\n` +
+                    `Current block: ${currentHeight.toLocaleString()}\n` +
+                    `Unlock block: ${locktime.toLocaleString()}\n` +
+                    `Blocks remaining: ${blocksRemaining.toLocaleString()}\n` +
+                    `Estimated wait: ${timeStr}\n\n` +
+                    `The Bitcoin network will reject any withdrawal attempt until block ${locktime.toLocaleString()} is reached.`
+                );
+            }
+
             let privateKeyBytes;
             if (privkeyInput.length === 64) {
                 privateKeyBytes = hexToBytes(privkeyInput);
@@ -2669,7 +2704,39 @@
             document.getElementById('broadcast-slider').style.display = 'none';
 
         } catch (error) {
-            showError(error.message);
+            let errorMsg = error.message;
+
+            // Check if this is a locktime-related rejection
+            const locktimeErrors = ['non-final', 'locktime', 'non-BIP68-final', 'bad-txns-nonfinal'];
+            const isLocktimeError = locktimeErrors.some(e => errorMsg.toLowerCase().includes(e.toLowerCase()));
+
+            if (isLocktimeError) {
+                // Try to get locktime from pending transaction and provide helpful message
+                const currentHeight = lastBlockHeight;
+                const descriptor = document.getElementById('spend-descriptor').value.trim();
+                try {
+                    const { locktime } = parseDescriptor(descriptor);
+                    if (currentHeight && locktime) {
+                        const blocksRemaining = locktime - currentHeight;
+                        if (blocksRemaining > 0) {
+                            errorMsg = `Transaction rejected: Funds are still locked!\n\n` +
+                                `Current block: ${currentHeight.toLocaleString()}\n` +
+                                `Unlock block: ${locktime.toLocaleString()}\n` +
+                                `Blocks remaining: ${blocksRemaining.toLocaleString()}\n\n` +
+                                `The network will not accept this transaction until block ${locktime.toLocaleString()} is mined.`;
+                        }
+                    }
+                } catch (e) {
+                    // If parsing fails, just show original error
+                    errorMsg = `Transaction rejected by the network.\n\n` +
+                        `This usually means the timelock hasn't been reached yet. ` +
+                        `Check that the current block height is past your unlock block.\n\n` +
+                        `Original error: ${error.message}`;
+                }
+            }
+
+            showError(errorMsg);
+
             // Reset slider on error
             const thumb = document.getElementById('slide-thumb');
             const slider = document.getElementById('broadcast-slider');
