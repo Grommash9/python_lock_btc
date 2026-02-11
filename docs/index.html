@@ -2448,6 +2448,9 @@
                 throw new Error('Recovery phrase does not match the vault blueprint');
             }
 
+            // Get the source address for verification
+            const sourceAddress = document.getElementById('utxo-address').value.trim();
+
             const result = await buildAndSignTransaction(
                 privateKeyBytes,
                 publicKey,
@@ -2456,7 +2459,8 @@
                 selectedUTXOs,
                 destination,
                 feeRate,
-                network
+                network,
+                sourceAddress
             );
 
             document.getElementById('result-txid').value = result.txid;
@@ -2479,7 +2483,7 @@
         }
     }
 
-    async function buildAndSignTransaction(privateKeyBytes, publicKey, internalKey, locktime, utxos, destination, feeRate, network) {
+    async function buildAndSignTransaction(privateKeyBytes, publicKey, internalKey, locktime, utxos, destination, feeRate, network, sourceAddress) {
         const { Address, Script, Tap, Tx, Signer, util } = window.tapscript;
 
         const totalInput = utxos.reduce((sum, u) => sum + u.value, 0);
@@ -2506,6 +2510,22 @@
 
         const lockedAddress = Address.p2tr.fromPubKey(tpubkey, tapscriptNetwork);
         const scriptPubKey = Address.toScriptPubKey(lockedAddress);
+
+        // Verify the derived address matches the source address (if provided)
+        if (sourceAddress && sourceAddress.trim() !== '') {
+            if (lockedAddress !== sourceAddress.trim()) {
+                throw new Error(
+                    `Address mismatch!\n\n` +
+                    `The vault blueprint derives a different address than where your funds are.\n\n` +
+                    `Blueprint derives: ${lockedAddress}\n` +
+                    `Funds are at: ${sourceAddress}\n\n` +
+                    `This usually means:\n` +
+                    `• The blueprint is for a different vault\n` +
+                    `• The locktime in the blueprint doesn't match\n` +
+                    `• Copy/paste error with the blueprint`
+                );
+            }
+        }
         const destScriptPubKey = Address.toScriptPubKey(destination);
 
         const estimatedVsize = 10.5 + (57.5 * utxos.length) + 43;
@@ -2707,10 +2727,44 @@
             let errorMsg = error.message;
 
             // Check if this is a locktime-related rejection
+            // Check for different error types and provide helpful messages
             const locktimeErrors = ['non-final', 'locktime', 'non-BIP68-final', 'bad-txns-nonfinal'];
-            const isLocktimeError = locktimeErrors.some(e => errorMsg.toLowerCase().includes(e.toLowerCase()));
+            const witnessErrors = ['witness program hash mismatch', 'script-verify-flag-failed', 'witness program was passed an empty witness'];
 
-            if (isLocktimeError) {
+            const isLocktimeError = locktimeErrors.some(e => errorMsg.toLowerCase().includes(e.toLowerCase()));
+            const isWitnessError = witnessErrors.some(e => errorMsg.toLowerCase().includes(e.toLowerCase()));
+
+            if (isWitnessError) {
+                // Witness/script mismatch - likely descriptor doesn't match funded address
+                const sourceAddress = document.getElementById('utxo-address').value.trim();
+                const descriptor = document.getElementById('spend-descriptor').value.trim();
+
+                let derivedAddress = 'unknown';
+                try {
+                    const { internalKey, publicKey, locktime } = parseDescriptor(descriptor);
+                    const { Address, Tap } = window.tapscript;
+                    const locktimeHex = encodeScriptInt(locktime);
+                    const timelockScript = [publicKey, 'OP_CHECKSIGVERIFY', locktimeHex, 'OP_CHECKLOCKTIMEVERIFY'];
+                    const tapleaf = Tap.encodeScript(timelockScript);
+                    const [tpubkey] = Tap.getPubKey(internalKey, { target: tapleaf });
+                    const network = getSelectedNetwork();
+                    const tapscriptNetwork = {
+                        'mainnet': 'main', 'testnet4': 'testnet', 'testnet3': 'testnet',
+                        'signet': 'signet', 'regtest': 'regtest'
+                    }[network] || 'regtest';
+                    derivedAddress = Address.p2tr.fromPubKey(tpubkey, tapscriptNetwork);
+                } catch (e) {}
+
+                errorMsg = `Transaction rejected: Witness/Script Mismatch!\n\n` +
+                    `The vault blueprint doesn't match the address where your funds are.\n\n` +
+                    `Funds are at: ${sourceAddress || '(not specified)'}\n` +
+                    `Blueprint derives: ${derivedAddress}\n\n` +
+                    `Possible causes:\n` +
+                    `• Wrong vault blueprint (for a different vault)\n` +
+                    `• Funds were sent to a different address\n` +
+                    `• The UTXO is unconfirmed and may have been replaced\n\n` +
+                    `Original error: ${error.message}`;
+            } else if (isLocktimeError) {
                 // Try to get locktime from pending transaction and provide helpful message
                 const currentHeight = lastBlockHeight;
                 const descriptor = document.getElementById('spend-descriptor').value.trim();
