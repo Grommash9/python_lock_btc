@@ -3,20 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin Timelock Wallet</title>
+    <title>Bitcoin Vault - Time-Locked Savings</title>
     <style>
         :root {
-            --bg-primary: #1a1a2e;
-            --bg-secondary: #16213e;
-            --bg-card: #0f3460;
-            --accent: #e94560;
-            --accent-hover: #ff6b6b;
-            --text-primary: #eaeaea;
-            --text-secondary: #a0a0a0;
-            --success: #4ade80;
-            --warning: #fbbf24;
-            --error: #ef4444;
-            --border: #2a4a6e;
+            /* Modern crypto dark palette - deep charcoal/navy */
+            --bg-primary: #0D0D12;
+            --bg-secondary: #14151A;
+            --bg-tertiary: #1A1B26;
+            --bg-elevated: #1E1F2B;
+
+            /* Glassmorphism surfaces */
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-bg-hover: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-glow: rgba(99, 179, 237, 0.1);
+
+            /* Accent colors - cyan/emerald for crypto look */
+            --accent-primary: #22D3EE;
+            --accent-secondary: #10B981;
+            --accent-glow: rgba(34, 211, 238, 0.3);
+            --accent-soft: rgba(34, 211, 238, 0.15);
+
+            /* Text - avoid pure white for reduced halation */
+            --text-primary: #E8E8ED;
+            --text-secondary: #9CA3AF;
+            --text-tertiary: #6B7280;
+            --text-muted: #4B5563;
+
+            /* Status colors */
+            --success: #10B981;
+            --success-soft: rgba(16, 185, 129, 0.15);
+            --warning: #F59E0B;
+            --warning-soft: rgba(245, 158, 11, 0.15);
+            --error: #EF4444;
+            --error-soft: rgba(239, 68, 68, 0.15);
+
+            /* Shadows for depth */
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+            --shadow-glow: 0 0 20px var(--accent-glow);
+
+            /* Post-neumorphism */
+            --neu-raised: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 12px rgba(0, 0, 0, 0.4);
+            --neu-pressed: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+
+            /* Spacing */
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
         }
 
         * {
@@ -26,48 +62,162 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             line-height: 1.6;
             min-height: 100vh;
+            letter-spacing: 0.02em;
+            /* Animated gradient background for spatial feel */
+            background-image:
+                radial-gradient(ellipse at 20% 20%, rgba(34, 211, 238, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(16, 185, 129, 0.06) 0%, transparent 50%);
+            background-attachment: fixed;
         }
 
+        /* ==================== GLASSMORPHISM COMPONENTS ==================== */
+
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .glass-card-elevated {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        /* ==================== HEADER ==================== */
+
         header {
-            background: var(--bg-secondary);
+            background: rgba(20, 21, 26, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             padding: 1rem 2rem;
-            border-bottom: 1px solid var(--border);
+            border-bottom: 1px solid var(--glass-border);
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
             gap: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
-        header h1 {
-            font-size: 1.5rem;
-            color: var(--accent);
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
 
-        .network-status {
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            box-shadow: var(--shadow-glow);
+        }
+
+        .logo h1 {
+            font-size: 1.35rem;
+            font-weight: 600;
+            background: linear-gradient(90deg, var(--text-primary), var(--accent-primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-right {
             display: flex;
             align-items: center;
             gap: 1rem;
-            background: var(--bg-card);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
         }
 
-        .status-indicator {
-            width: 12px;
-            height: 12px;
+        .network-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 1rem;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             background: var(--error);
+            transition: all 0.3s;
         }
 
-        .status-indicator.connected {
+        .status-dot.connected {
             background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+            animation: pulse 2s infinite;
         }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--success); }
+            50% { opacity: 0.7; box-shadow: 0 0 16px var(--success); }
+        }
+
+        .network-select {
+            padding: 0.35rem 0.6rem;
+            font-size: 0.85rem;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .network-select:focus {
+            outline: none;
+        }
+
+        .block-counter {
+            font-variant-numeric: tabular-nums;
+            font-family: 'SF Mono', 'Monaco', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .block-counter strong {
+            color: var(--accent-primary);
+        }
+
+        .help-btn {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .help-btn:hover {
+            background: var(--glass-bg-hover);
+            color: var(--text-primary);
+            border-color: var(--accent-primary);
+        }
+
+        /* ==================== MAIN LAYOUT ==================== */
 
         main {
             max-width: 1400px;
@@ -81,116 +231,304 @@
         @media (max-width: 1024px) {
             main {
                 grid-template-columns: 1fr;
+                padding: 1rem;
             }
         }
 
+        /* ==================== SECTION CARDS ==================== */
+
         section {
-            background: var(--bg-secondary);
-            border-radius: 12px;
-            padding: 1.5rem;
-            border: 1px solid var(--border);
+            padding: 1.75rem;
         }
 
-        section h2 {
-            color: var(--accent);
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
             margin-bottom: 1.5rem;
-            font-size: 1.25rem;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 0.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--glass-border);
         }
+
+        .section-number {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--bg-primary);
+        }
+
+        .section-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* ==================== FORM ELEMENTS ==================== */
 
         .form-group {
-            margin-bottom: 1.25rem;
+            margin-bottom: 1.5rem;
         }
 
-        .form-group label {
-            display: block;
+        .form-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
             margin-bottom: 0.5rem;
             color: var(--text-secondary);
             font-size: 0.9rem;
+            font-weight: 500;
         }
 
-        .form-group small {
+        .form-hint {
             display: block;
-            margin-top: 0.25rem;
-            color: var(--text-secondary);
+            margin-top: 0.5rem;
+            color: var(--text-tertiary);
             font-size: 0.8rem;
         }
 
+        /* Info button tooltip system */
+        .info-trigger {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: help;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .info-trigger:hover {
+            background: var(--accent-soft);
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .tooltip {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 280px;
+            padding: 0.85rem 1rem;
+            background: rgba(26, 27, 38, 0.98);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg), var(--shadow-glow);
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            font-weight: 400;
+            line-height: 1.5;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+            z-index: 1000;
+            text-align: left;
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: var(--glass-border);
+        }
+
+        .info-trigger:hover .tooltip,
+        .tooltip:hover {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .tooltip-title {
+            font-weight: 600;
+            color: var(--accent-primary);
+            margin-bottom: 0.35rem;
+            font-size: 0.85rem;
+        }
+
+        /* Input fields - post-neumorphism style */
         input, select, textarea {
             width: 100%;
-            padding: 0.75rem;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 6px;
+            padding: 0.85rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
             color: var(--text-primary);
-            font-family: 'Monaco', 'Consolas', monospace;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
             font-size: 0.9rem;
+            transition: all 0.2s;
+            box-shadow: var(--neu-pressed);
         }
 
         input:focus, select:focus, textarea:focus {
             outline: none;
-            border-color: var(--accent);
+            border-color: var(--accent-primary);
+            box-shadow: var(--neu-pressed), 0 0 0 3px var(--accent-soft);
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: var(--text-muted);
         }
 
         textarea {
-            min-height: 80px;
+            min-height: 90px;
             resize: vertical;
         }
 
+        /* ==================== BUTTONS - Post-Neumorphism ==================== */
+
         button {
-            padding: 0.75rem 1.5rem;
+            padding: 0.8rem 1.5rem;
             border: none;
-            border-radius: 6px;
+            border-radius: var(--radius-md);
             cursor: pointer;
             font-size: 0.9rem;
-            font-weight: 500;
+            font-weight: 600;
             transition: all 0.2s;
+            letter-spacing: 0.02em;
         }
 
-        button.primary {
-            background: var(--accent);
-            color: white;
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: var(--bg-primary);
+            box-shadow: var(--neu-raised), var(--shadow-glow);
         }
 
-        button.primary:hover {
-            background: var(--accent-hover);
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--neu-raised), 0 0 30px var(--accent-glow);
         }
 
-        button.secondary {
-            background: var(--bg-card);
+        .btn-primary:active {
+            transform: translateY(0);
+            box-shadow: var(--neu-pressed);
+        }
+
+        .btn-secondary {
+            background: var(--glass-bg);
             color: var(--text-primary);
-            border: 1px solid var(--border);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--neu-raised);
         }
 
-        button.secondary:hover {
-            background: var(--border);
+        .btn-secondary:hover {
+            background: var(--glass-bg-hover);
+            border-color: var(--accent-primary);
         }
 
-        button.danger {
-            background: var(--error);
+        .btn-danger {
+            background: linear-gradient(135deg, var(--error), #DC2626);
             color: white;
+            box-shadow: var(--neu-raised);
         }
 
-        button.danger:hover {
-            background: #dc2626;
+        .btn-danger:hover {
+            box-shadow: var(--neu-raised), 0 0 20px var(--error-soft);
         }
 
         button:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
+            transform: none !important;
         }
 
         .btn-row {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.75rem;
             flex-wrap: wrap;
         }
 
+        /* ==================== SLIDE TO CONFIRM ==================== */
+
+        .slide-confirm {
+            position: relative;
+            width: 100%;
+            height: 56px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--neu-pressed);
+        }
+
+        .slide-track {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            right: 4px;
+            bottom: 4px;
+            background: linear-gradient(90deg, transparent 0%, var(--error-soft) 100%);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .slide-text {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            user-select: none;
+        }
+
+        .slide-thumb {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--error), #DC2626);
+            border-radius: var(--radius-md);
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-md);
+            transition: left 0.1s ease-out;
+            z-index: 10;
+        }
+
+        .slide-thumb:active {
+            cursor: grabbing;
+        }
+
+        .slide-thumb svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        .slide-confirm.confirmed .slide-thumb {
+            background: linear-gradient(135deg, var(--success), #059669);
+        }
+
+        .slide-confirm.confirmed .slide-track {
+            background: var(--success-soft);
+        }
+
+        /* ==================== RESULTS / OUTPUT AREAS ==================== */
+
         .results {
-            margin-top: 1.5rem;
+            margin-top: 1.75rem;
             padding-top: 1.5rem;
-            border-top: 1px solid var(--border);
+            border-top: 1px solid var(--glass-border);
         }
 
         .results.hidden {
@@ -198,14 +536,17 @@
         }
 
         .result-field {
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
         }
 
-        .result-field label {
-            display: block;
-            margin-bottom: 0.25rem;
+        .result-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.4rem;
             color: var(--text-secondary);
             font-size: 0.85rem;
+            font-weight: 500;
         }
 
         .copyable {
@@ -218,46 +559,88 @@
         }
 
         .copy-btn {
-            padding: 0.5rem 0.75rem;
+            padding: 0.5rem 0.85rem;
             font-size: 0.8rem;
             white-space: nowrap;
         }
 
-        .warning-box {
-            background: rgba(251, 191, 36, 0.1);
-            border: 1px solid var(--warning);
-            border-radius: 6px;
-            padding: 1rem;
+        /* ==================== STATUS BOXES ==================== */
+
+        .alert-box {
+            padding: 1rem 1.25rem;
+            border-radius: var(--radius-md);
             margin: 1rem 0;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .alert-box-icon {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            margin-top: 2px;
+        }
+
+        .alert-warning {
+            background: var(--warning-soft);
+            border: 1px solid rgba(245, 158, 11, 0.3);
             color: var(--warning);
-            font-size: 0.9rem;
         }
 
-        .error-box {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid var(--error);
-            border-radius: 6px;
-            padding: 1rem;
-            margin: 1rem 0;
+        .alert-error {
+            background: var(--error-soft);
+            border: 1px solid rgba(239, 68, 68, 0.3);
             color: var(--error);
-            font-size: 0.9rem;
         }
 
-        .success-box {
-            background: rgba(74, 222, 128, 0.1);
-            border: 1px solid var(--success);
-            border-radius: 6px;
-            padding: 1rem;
-            margin: 1rem 0;
+        .alert-success {
+            background: var(--success-soft);
+            border: 1px solid rgba(16, 185, 129, 0.3);
             color: var(--success);
+        }
+
+        .alert-info {
+            background: var(--accent-soft);
+            border: 1px solid rgba(34, 211, 238, 0.3);
+            color: var(--accent-primary);
+        }
+
+        /* ==================== UTXO LIST - "Digital Bills" Concept ==================== */
+
+        .utxo-section {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .utxo-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .utxo-header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .utxo-title {
             font-size: 0.9rem;
+            color: var(--text-primary);
+            font-weight: 500;
         }
 
         .utxo-list {
             max-height: 200px;
             overflow-y: auto;
-            background: var(--bg-card);
-            border-radius: 6px;
             margin: 0.5rem 0;
         }
 
@@ -265,126 +648,180 @@
             display: flex;
             align-items: center;
             padding: 0.75rem;
-            border-bottom: 1px solid var(--border);
-            font-family: monospace;
-            font-size: 0.85rem;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-sm);
+            margin-bottom: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .utxo-item:hover {
+            background: var(--glass-bg-hover);
         }
 
         .utxo-item:last-child {
-            border-bottom: none;
+            margin-bottom: 0;
         }
 
-        .utxo-item input[type="checkbox"] {
+        .utxo-checkbox {
             width: auto;
             margin-right: 0.75rem;
+            accent-color: var(--accent-primary);
         }
 
-        .utxo-item .txid {
-            color: var(--text-secondary);
-            max-width: 200px;
+        .utxo-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .utxo-txid {
+            font-family: 'SF Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        .utxo-item .amount {
-            margin-left: auto;
+        .utxo-amount {
+            font-weight: 600;
             color: var(--success);
-            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+            margin-left: auto;
+            padding-left: 1rem;
         }
 
-        .total-display {
-            background: var(--bg-card);
-            padding: 0.75rem;
-            border-radius: 6px;
-            margin-top: 0.5rem;
+        .utxo-remove {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            margin-left: 0.5rem;
+            background: transparent;
+            border: 1px solid var(--glass-border);
+        }
+
+        .utxo-summary {
             display: flex;
             justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-sm);
+            margin-top: 0.75rem;
         }
 
-        .fee-suggestions {
+        .utxo-summary-label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .utxo-summary-value {
+            font-weight: 600;
+            color: var(--accent-primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ==================== FEE SUGGESTIONS ==================== */
+
+        .fee-options {
             display: flex;
             gap: 0.5rem;
             margin-top: 0.5rem;
             flex-wrap: wrap;
         }
 
-        .fee-btn {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
+        .fee-option {
+            padding: 0.4rem 0.75rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-sm);
             font-size: 0.8rem;
             cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
         }
 
-        .fee-btn:hover {
-            border-color: var(--accent);
+        .fee-option:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
         }
 
-        footer {
-            text-align: center;
-            padding: 2rem;
+        .fee-option-label {
+            font-weight: 500;
+        }
+
+        .fee-option-value {
+            color: var(--text-tertiary);
+            margin-left: 0.25rem;
+        }
+
+        /* ==================== TIME ESTIMATE BOX ==================== */
+
+        .time-estimate {
+            margin-top: 0.75rem;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--glass-border);
+        }
+
+        .time-estimate-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .time-estimate-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .time-estimate-label {
             color: var(--text-secondary);
             font-size: 0.85rem;
-            border-top: 1px solid var(--border);
-            margin-top: 2rem;
         }
 
-        footer a {
-            color: var(--accent);
-            text-decoration: none;
+        .time-estimate-value {
+            font-weight: 600;
+            color: var(--accent-primary);
+            font-variant-numeric: tabular-nums;
         }
 
-        .inline-input {
-            display: flex;
-            gap: 0.5rem;
+        .time-estimate-value.warning {
+            color: var(--error);
         }
 
-        .inline-input input {
-            flex: 1;
+        /* ==================== TX RESULT STATS ==================== */
+
+        .tx-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            padding: 1rem 0;
         }
 
-        .toggle-btn {
-            padding: 0.5rem 0.75rem;
-            font-size: 0.8rem;
+        .tx-stat {
+            text-align: center;
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-sm);
         }
 
-        #loading-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
+        .tx-stat-label {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
         }
 
-        #loading-overlay.active {
-            display: flex;
+        .tx-stat-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            font-variant-numeric: tabular-nums;
         }
 
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid var(--border);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
+        /* ==================== MODALS ==================== */
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .network-mainnet {
-            color: var(--error) !important;
-            font-weight: bold;
-        }
-
-        /* Modal styles */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -392,7 +829,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
             justify-content: center;
             align-items: center;
             z-index: 2000;
@@ -402,419 +841,801 @@
             display: flex;
         }
 
-        .modal-content {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            max-width: 550px;
+        .modal {
+            max-width: 720px;
             margin: 1rem;
+            padding: 1.75rem 2rem;
+            animation: modalSlideIn 0.3s ease;
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
-        .modal-content h2 {
-            color: var(--accent);
-            margin-bottom: 0.75rem;
-            font-size: 1.3rem;
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
-        .modal-content h3 {
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .modal-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
             color: var(--text-primary);
-            margin: 0.75rem 0 0.5rem 0;
-            font-size: 0.95rem;
         }
 
-        .modal-content p, .modal-content li {
+        .modal-subtitle {
+            font-size: 0.8rem;
             color: var(--text-secondary);
-            margin-bottom: 0.4rem;
-            line-height: 1.4;
+            margin-top: 0.15rem;
+        }
+
+        .modal h3 {
+            font-size: 0.95rem;
+            color: var(--accent-primary);
+            margin: 1rem 0 0.5rem 0;
+            font-weight: 600;
+        }
+
+        .modal p {
+            color: var(--text-secondary);
             font-size: 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 0.35rem;
         }
 
-        .modal-content ul {
-            margin-left: 1.25rem;
-            margin-bottom: 0.5rem;
+        .modal ul {
+            margin: 0.35rem 0 0.35rem 1.25rem;
         }
 
-        .modal-content .highlight {
-            color: var(--warning);
+        .modal li {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 0.25rem;
+        }
+
+        .modal-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 600px) {
+            .modal-grid {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+        }
+
+        .modal li strong {
+            color: var(--text-primary);
+        }
+
+        .modal .highlight {
+            color: var(--accent-primary);
             font-weight: 500;
         }
 
-        .modal-close-btn {
+        .modal-close {
             margin-top: 1rem;
             width: 100%;
         }
 
-        /* UTXO Section Styles */
-        .utxo-section {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-top: 0.5rem;
-        }
+        /* ==================== LOADING OVERLAY ==================== */
 
-        .utxo-section-header {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .utxo-section-title {
-            font-size: 0.9rem;
-            color: var(--text-primary);
-            font-weight: 500;
-        }
-
-        .info-btn {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: var(--border);
-            color: var(--text-secondary);
-            font-size: 0.7rem;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .info-btn:hover {
-            background: var(--accent);
-            color: white;
-        }
-
-        .utxo-info-tooltip {
+        #loading-overlay {
             display: none;
-            background: var(--bg-primary);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.75rem;
-            margin-bottom: 0.75rem;
-            font-size: 0.8rem;
-            color: var(--text-secondary);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(13, 13, 18, 0.9);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
         }
 
-        .utxo-info-tooltip.visible {
-            display: block;
-        }
-
-        /* Locktime warning */
-        .locktime-warning {
-            color: var(--error) !important;
-            font-weight: 500;
-        }
-
-        /* Block height compact display */
-        .block-height-display {
-            font-variant-numeric: tabular-nums;
-            font-family: 'Monaco', 'Consolas', monospace;
-            font-size: 0.9rem;
-        }
-
-        .header-left {
+        #loading-overlay.active {
             display: flex;
+        }
+
+        .loader {
+            display: flex;
+            flex-direction: column;
             align-items: center;
             gap: 1rem;
         }
 
-        .about-btn {
-            padding: 0.4rem 0.8rem;
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--glass-border);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loader-text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* ==================== FOOTER ==================== */
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-tertiary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--glass-border);
+            margin-top: 2rem;
+        }
+
+        footer a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        footer a:hover {
+            color: var(--accent-secondary);
+        }
+
+        .security-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--success-soft);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: var(--radius-sm);
+            color: var(--success);
             font-size: 0.8rem;
         }
 
-        .network-select-header {
-            padding: 0.4rem 0.6rem;
+        .security-badge svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* ==================== INLINE INPUT GROUP ==================== */
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .input-group input {
+            flex: 1;
+        }
+
+        /* ==================== TOGGLE VISIBILITY ==================== */
+
+        .toggle-btn {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+            min-width: 60px;
+        }
+
+        /* ==================== MAINNET WARNING STYLING ==================== */
+
+        .network-mainnet {
+            color: var(--error) !important;
+            font-weight: 600;
+        }
+
+        /* ==================== PROGRESS STATES ==================== */
+
+        .tx-progress {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            margin: 1rem 0;
+        }
+
+        .tx-progress-step {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-tertiary);
             font-size: 0.85rem;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            color: var(--text-primary);
         }
 
-        .network-select-header:focus {
-            outline: none;
-            border-color: var(--accent);
+        .tx-progress-step.active {
+            color: var(--accent-primary);
         }
 
-        .live-indicator {
-            display: inline-block;
+        .tx-progress-step.complete {
+            color: var(--success);
+        }
+
+        .tx-progress-dot {
             width: 8px;
             height: 8px;
-            background: var(--success);
             border-radius: 50%;
-            margin-left: 0.25rem;
-            animation: pulse 2s infinite;
+            background: var(--text-muted);
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        .tx-progress-step.active .tx-progress-dot {
+            background: var(--accent-primary);
+            animation: pulse 1.5s infinite;
+        }
+
+        .tx-progress-step.complete .tx-progress-dot {
+            background: var(--success);
+        }
+
+        .tx-progress-line {
+            flex: 1;
+            height: 2px;
+            background: var(--glass-border);
+        }
+
+        /* ==================== ADVANCED TOGGLE (Progressive Disclosure) ==================== */
+
+        .advanced-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0;
+            color: var(--text-tertiary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .advanced-toggle:hover {
+            color: var(--text-secondary);
+        }
+
+        .advanced-toggle svg {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.2s;
+        }
+
+        .advanced-toggle.open svg {
+            transform: rotate(180deg);
+        }
+
+        .advanced-content {
+            display: none;
+            padding-top: 0.5rem;
+        }
+
+        .advanced-content.visible {
+            display: block;
+        }
+
+        /* ==================== EMPTY STATE ==================== */
+
+        .empty-state {
+            padding: 2rem;
+            text-align: center;
+            color: var(--text-tertiary);
+        }
+
+        .empty-state-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            opacity: 0.5;
+        }
+
+        .empty-state-text {
+            font-size: 0.9rem;
         }
     </style>
 </head>
 <body>
     <div id="loading-overlay">
-        <div class="spinner"></div>
+        <div class="loader">
+            <div class="spinner"></div>
+            <span class="loader-text">Processing...</span>
+        </div>
     </div>
 
-    <!-- Welcome Modal -->
-    <div class="modal-overlay" id="welcome-modal">
-        <div class="modal-content">
-            <h2>Bitcoin Timelock Wallet</h2>
-            <p>Create <strong>time-locked Bitcoin addresses</strong> using Taproot. Funds can only be spent after a specific block height.</p>
+    <!-- Welcome Modal - Educational "What is this?" -->
+    <div class="modal-overlay" id="welcome-modal" onclick="closeWelcomeModal()">
+        <div class="modal glass-card-elevated" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <div class="modal-icon">&#128274;</div>
+                <div>
+                    <div class="modal-title">Bitcoin Vault</div>
+                    <div class="modal-subtitle">Time-locked savings for your future</div>
+                </div>
+            </div>
 
-            <h3>How It Works</h3>
-            <ul>
-                <li><strong>Create:</strong> Generate address locked until a block height</li>
-                <li><strong>Fund:</strong> Send BTC to the address from any wallet</li>
-                <li><strong>Wait:</strong> Funds locked until blockchain reaches target</li>
-                <li><strong>Spend:</strong> After unlock, spend to any destination</li>
-            </ul>
+            <p>Create a <span class="highlight">digital savings vault</span> that locks your Bitcoin until a specific date. Perfect for long-term savings, inheritance planning, or just keeping your funds safe from impulse spending.</p>
 
-            <h3>Security</h3>
-            <ul>
-                <li>All crypto runs <span class="highlight">in your browser</span> - keys never leave</li>
-                <li>Download backup JSON - it contains your private key!</li>
-            </ul>
+            <p style="margin-bottom: 0.75rem;">The timelock is <span class="highlight">enforced by the Bitcoin network itself</span> - not by any company or third party. No one can unlock your funds early.</p>
 
-            <h3>Networks</h3>
-            <p><strong>Testnet4</strong> (recommended) | Testnet3 | Signet | Mainnet | Regtest</p>
+            <div class="modal-grid">
+                <div>
+                    <h3>How It Works</h3>
+                    <ul>
+                        <li><strong>Create:</strong> Choose your unlock date</li>
+                        <li><strong>Deposit:</strong> Send BTC to the vault</li>
+                        <li><strong>Wait:</strong> Funds locked until target</li>
+                        <li><strong>Withdraw:</strong> Send anywhere after unlock</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3>Your Security</h3>
+                    <ul>
+                        <li>100% <span class="highlight">client-side</span> - keys never leave your device</li>
+                        <li>Download backup file - only way to access funds</li>
+                        <li>No accounts, no servers, pure Bitcoin</li>
+                    </ul>
+                </div>
+            </div>
 
-            <button class="primary modal-close-btn" onclick="closeWelcomeModal()">Got it!</button>
+            <p style="margin-top: 0.75rem;"><strong>Testnet4</strong> is selected by default - learn without risk. Switch to Mainnet for real Bitcoin.</p>
+
+            <button class="btn-primary modal-close" onclick="closeWelcomeModal()">Start Using Bitcoin Vault</button>
         </div>
     </div>
 
     <header>
-        <div class="header-left">
-            <h1>Bitcoin Timelock Wallet</h1>
-            <button class="secondary about-btn" onclick="openWelcomeModal()">About</button>
+        <div class="logo">
+            <div class="logo-icon">&#128274;</div>
+            <h1>Bitcoin Vault</h1>
         </div>
-        <div class="network-status">
-            <select id="network-selector" class="network-select-header" onchange="onGlobalNetworkChange()">
-                <option value="testnet4">Testnet4</option>
-                <option value="testnet3">Testnet3</option>
-                <option value="signet">Signet</option>
-                <option value="mainnet">Mainnet</option>
-                <option value="regtest">Regtest</option>
-            </select>
-            <span>|</span>
-            <div class="status-indicator" id="status-indicator"></div>
-            <span id="status-text">Connecting...</span>
-            <span>|</span>
-            <span>Block: <strong id="header-block-height" class="block-height-display">--</strong><span class="live-indicator" id="live-indicator" style="display: none;"></span></span>
+        <div class="header-right">
+            <div class="network-badge">
+                <div class="status-dot" id="status-indicator"></div>
+                <select id="network-selector" class="network-select" onchange="onGlobalNetworkChange()">
+                    <option value="testnet4">Testnet4</option>
+                    <option value="testnet3">Testnet3</option>
+                    <option value="signet">Signet</option>
+                    <option value="mainnet">Mainnet</option>
+                    <option value="regtest">Regtest</option>
+                </select>
+                <span class="block-counter">
+                    Block <strong id="header-block-height">--</strong>
+                </span>
+            </div>
+            <button class="help-btn" onclick="openWelcomeModal()">How it works</button>
         </div>
     </header>
 
     <main>
-        <!-- Section 1: Create Address -->
-        <section id="create-section">
-            <h2>1. Create Timelocked Address</h2>
+        <!-- Section 1: Create Vault -->
+        <section class="glass-card" id="create-section">
+            <div class="section-header">
+                <div class="section-number">1</div>
+                <div class="section-title">Create Your Vault</div>
+            </div>
 
             <div class="form-group">
-                <label>Locktime (Block Height)</label>
+                <label class="form-label">
+                    Unlock at Block Height
+                    <span class="info-trigger">?
+                        <div class="tooltip">
+                            <div class="tooltip-title">What is Block Height?</div>
+                            Think of it like a page number in Bitcoin's permanent record book. A new page is added roughly every 10 minutes. Choose a future page number, and your funds stay locked until Bitcoin reaches that page. This lock is enforced by the network itself - no third party involved.
+                        </div>
+                    </span>
+                </label>
                 <input type="number" id="locktime" placeholder="e.g., 950000" min="1" max="499999999">
-                <small>
-                    Current height: <span id="current-height">--</span> |
-                    Unlock at block: <span id="lock-target">--</span>
-                </small>
-                <div id="time-estimate" style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg-card); border-radius: 4px; display: none;">
-                    <strong>Time Estimate:</strong>
-                    <span id="blocks-until">--</span> blocks to go |
-                    ~<span id="time-until">--</span>
-                    <br><small style="color: var(--text-secondary);">Based on average 10 min/block (mainnet). Regtest is instant.</small>
+                <span class="form-hint">
+                    Current block: <strong id="current-height">--</strong>
+                </span>
+
+                <div class="time-estimate" id="time-estimate" style="display: none;">
+                    <div class="time-estimate-row">
+                        <span class="time-estimate-label">Blocks to go</span>
+                        <span class="time-estimate-value" id="blocks-until">--</span>
+                    </div>
+                    <div class="time-estimate-row">
+                        <span class="time-estimate-label">Estimated unlock</span>
+                        <span class="time-estimate-value" id="time-until">--</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="form-group">
-                <label>Import Existing Private Key (optional)</label>
-                <input type="text" id="import-privkey" placeholder="WIF format (starts with c, K, L, or 5)">
-                <small>Leave empty to generate a new key</small>
+            <div class="advanced-toggle" onclick="toggleAdvanced('create-advanced', this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6"/>
+                </svg>
+                Advanced options
+            </div>
+            <div class="advanced-content" id="create-advanced">
+                <div class="form-group">
+                    <label class="form-label">
+                        Import Existing Recovery Phrase
+                        <span class="info-trigger">?
+                            <div class="tooltip">
+                                <div class="tooltip-title">Recovery Phrase</div>
+                                If you have a backup from before, paste your private key here (WIF format, starting with c, K, L, or 5). Leave empty to generate a fresh key.
+                            </div>
+                        </span>
+                    </label>
+                    <input type="text" id="import-privkey" placeholder="Leave empty to generate new">
+                </div>
             </div>
 
-            <div id="mainnet-create-warning" class="warning-box" style="display: none;">
-                <strong>Warning:</strong> You have selected MAINNET. Real Bitcoin will be at risk. Make sure you understand what you're doing and backup your private key!
+            <div id="mainnet-create-warning" class="alert-box alert-warning" style="display: none;">
+                <svg class="alert-box-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+                <div>
+                    <strong>Real Bitcoin Mode:</strong> You're about to create a vault on the main Bitcoin network. Real money will be at risk. Make absolutely sure to backup your recovery phrase!
+                </div>
             </div>
 
-            <button id="generate-btn" class="primary" onclick="generateAddress()">Generate Address</button>
+            <button id="generate-btn" class="btn-primary" onclick="generateAddress()" style="width: 100%;">
+                Create Vault Address
+            </button>
 
             <div id="create-results" class="results hidden">
+                <div class="alert-box alert-info">
+                    <svg class="alert-box-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                    </svg>
+                    <div>
+                        <strong>Network-Enforced Lock:</strong> This timelock is guaranteed by the Bitcoin protocol itself. No company, server, or third party is involved - the lock is built into the transaction and enforced by every node on the network.
+                    </div>
+                </div>
+
                 <div class="result-field">
-                    <label>Address (send BTC here to lock it)</label>
+                    <label class="result-label">
+                        Vault Address
+                        <span class="info-trigger">?
+                            <div class="tooltip">
+                                <div class="tooltip-title">Your Deposit Address</div>
+                                Send Bitcoin to this address to lock it in your vault. Think of it like a safety deposit box - once funds arrive, they're locked until the unlock date.
+                            </div>
+                        </span>
+                    </label>
                     <div class="copyable">
                         <input type="text" id="result-address" readonly>
-                        <button class="copy-btn secondary" onclick="copyField('result-address')">Copy</button>
+                        <button class="copy-btn btn-secondary" onclick="copyField('result-address')">Copy</button>
                     </div>
                 </div>
 
                 <div class="result-field">
-                    <label>Descriptor (needed for spending)</label>
+                    <label class="result-label">
+                        Vault Blueprint
+                        <span class="info-trigger">?
+                            <div class="tooltip">
+                                <div class="tooltip-title">What is this?</div>
+                                This is the technical recipe that defines your vault. You'll need it when withdrawing funds. It's safe to share - it doesn't give access to your Bitcoin.
+                            </div>
+                        </span>
+                    </label>
                     <div class="copyable">
                         <textarea id="result-descriptor" readonly rows="3"></textarea>
-                        <button class="copy-btn secondary" onclick="copyField('result-descriptor')">Copy</button>
+                        <button class="copy-btn btn-secondary" onclick="copyField('result-descriptor')">Copy</button>
                     </div>
                 </div>
 
                 <div class="result-field">
-                    <label>Locktime</label>
+                    <label class="result-label">Unlock Block</label>
                     <input type="text" id="result-locktime" readonly>
                 </div>
 
-                <div class="warning-box">
-                    <strong>IMPORTANT:</strong> Save the private key below securely! Without it, you cannot spend your locked funds.
+                <div class="alert-box alert-warning">
+                    <svg class="alert-box-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                    </svg>
+                    <div>
+                        <strong>Save your Recovery Phrase!</strong> This is the only way to access your locked funds. Without it, your Bitcoin is lost forever.
+                    </div>
                 </div>
 
                 <div class="result-field">
-                    <label>Private Key (WIF) - KEEP SECRET!</label>
+                    <label class="result-label">
+                        Recovery Phrase (Private Key)
+                        <span class="info-trigger">?
+                            <div class="tooltip">
+                                <div class="tooltip-title">Keep This Secret!</div>
+                                This is your master key. Anyone who has it can withdraw your funds after the unlock date. Store it somewhere safe - write it down, don't just screenshot it.
+                            </div>
+                        </span>
+                    </label>
                     <div class="copyable">
                         <input type="password" id="result-privkey-wif" readonly>
-                        <button class="toggle-btn secondary" onclick="toggleVisibility('result-privkey-wif', this)">Show</button>
-                        <button class="copy-btn secondary" onclick="copyField('result-privkey-wif')">Copy</button>
+                        <button class="toggle-btn btn-secondary" onclick="toggleVisibility('result-privkey-wif', this)">Show</button>
+                        <button class="copy-btn btn-secondary" onclick="copyField('result-privkey-wif')">Copy</button>
                     </div>
                 </div>
 
-                <div class="result-field">
-                    <label>Private Key (Hex)</label>
-                    <div class="copyable">
-                        <input type="password" id="result-privkey-hex" readonly>
-                        <button class="toggle-btn secondary" onclick="toggleVisibility('result-privkey-hex', this)">Show</button>
-                        <button class="copy-btn secondary" onclick="copyField('result-privkey-hex')">Copy</button>
+                <div class="advanced-toggle" onclick="toggleAdvanced('create-results-advanced', this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                    Technical details
+                </div>
+                <div class="advanced-content" id="create-results-advanced">
+                    <div class="result-field">
+                        <label class="result-label">Private Key (Hex)</label>
+                        <div class="copyable">
+                            <input type="password" id="result-privkey-hex" readonly>
+                            <button class="toggle-btn btn-secondary" onclick="toggleVisibility('result-privkey-hex', this)">Show</button>
+                            <button class="copy-btn btn-secondary" onclick="copyField('result-privkey-hex')">Copy</button>
+                        </div>
+                    </div>
+
+                    <div class="result-field">
+                        <label class="result-label">Public Key (Hex)</label>
+                        <div class="copyable">
+                            <input type="text" id="result-pubkey" readonly>
+                            <button class="copy-btn btn-secondary" onclick="copyField('result-pubkey')">Copy</button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="result-field">
-                    <label>Public Key (Hex)</label>
-                    <div class="copyable">
-                        <input type="text" id="result-pubkey" readonly>
-                        <button class="copy-btn secondary" onclick="copyField('result-pubkey')">Copy</button>
-                    </div>
-                </div>
-
-                <div class="btn-row" style="margin-top: 1rem;">
-                    <button class="secondary" onclick="downloadBackup()">Download Backup JSON</button>
+                <div class="btn-row" style="margin-top: 1.25rem;">
+                    <button class="btn-secondary" onclick="downloadBackup()" style="flex: 1;">
+                        Download Backup File
+                    </button>
                 </div>
             </div>
         </section>
 
-        <!-- Section 2: Spend -->
-        <section id="spend-section">
-            <h2>2. Spend from Timelocked Address</h2>
-
-            <div class="form-group">
-                <label>Descriptor</label>
-                <textarea id="spend-descriptor" placeholder="tr(50929b74...,and_v(v:pk(...),after(...)))"></textarea>
+        <!-- Section 2: Withdraw -->
+        <section class="glass-card" id="spend-section">
+            <div class="section-header">
+                <div class="section-number">2</div>
+                <div class="section-title">Withdraw from Vault</div>
             </div>
 
             <div class="form-group">
-                <label>Private Key (WIF)</label>
-                <div class="inline-input">
-                    <input type="password" id="spend-privkey">
-                    <button class="toggle-btn secondary" onclick="toggleVisibility('spend-privkey', this)">Show</button>
+                <label class="form-label">
+                    Vault Blueprint
+                    <span class="info-trigger">?
+                        <div class="tooltip">
+                            <div class="tooltip-title">Vault Blueprint (Descriptor)</div>
+                            Paste the blueprint you saved when creating the vault. It tells the network how to verify your withdrawal request.
+                        </div>
+                    </span>
+                </label>
+                <textarea id="spend-descriptor" placeholder="Paste your vault blueprint (tr(50929b74...,and_v(...)))"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">
+                    Recovery Phrase
+                    <span class="info-trigger">?
+                        <div class="tooltip">
+                            <div class="tooltip-title">Your Private Key</div>
+                            The secret key you saved when creating the vault. This proves you're the owner.
+                        </div>
+                    </span>
+                </label>
+                <div class="input-group">
+                    <input type="password" id="spend-privkey" placeholder="Paste your recovery phrase">
+                    <button class="toggle-btn btn-secondary" onclick="toggleVisibility('spend-privkey', this)">Show</button>
                 </div>
             </div>
 
             <div class="form-group">
-                <label>Destination Address</label>
+                <label class="form-label">
+                    Send To
+                    <span class="info-trigger">?
+                        <div class="tooltip">
+                            <div class="tooltip-title">Destination Address</div>
+                            Where should we send your Bitcoin after withdrawal? This can be any Bitcoin address - your exchange, your hardware wallet, etc.
+                        </div>
+                    </span>
+                </label>
                 <input type="text" id="destination" placeholder="tb1q... or tb1p... (testnet address)">
             </div>
 
             <div class="form-group">
-                <label>Fee Rate (sat/vB)</label>
+                <label class="form-label">
+                    Network Fee
+                    <span class="info-trigger">?
+                        <div class="tooltip">
+                            <div class="tooltip-title">Network Toll</div>
+                            Like a toll on a highway, you pay a small fee to use the Bitcoin network. Higher fees = faster processing. Think of it like surge pricing - when the network is busy, fees go up.
+                        </div>
+                    </span>
+                </label>
                 <input type="number" id="fee-rate" value="10" min="1">
-                <div class="fee-suggestions" id="fee-suggestions">
-                    <span class="fee-btn" onclick="setFeeRate('fast')">Fast: <span id="fee-fast">--</span></span>
-                    <span class="fee-btn" onclick="setFeeRate('medium')">Medium: <span id="fee-medium">--</span></span>
-                    <span class="fee-btn" onclick="setFeeRate('slow')">Economy: <span id="fee-slow">--</span></span>
+                <div class="fee-options" id="fee-suggestions">
+                    <span class="fee-option" onclick="setFeeRate('fast')">
+                        <span class="fee-option-label">Fast</span>
+                        <span class="fee-option-value" id="fee-fast">--</span>
+                    </span>
+                    <span class="fee-option" onclick="setFeeRate('medium')">
+                        <span class="fee-option-label">Normal</span>
+                        <span class="fee-option-value" id="fee-medium">--</span>
+                    </span>
+                    <span class="fee-option" onclick="setFeeRate('slow')">
+                        <span class="fee-option-label">Economy</span>
+                        <span class="fee-option-value" id="fee-slow">--</span>
+                    </span>
                 </div>
             </div>
 
             <div class="form-group">
-                <label>UTXOs</label>
+                <label class="form-label">
+                    Available Funds
+                    <span class="info-trigger">?
+                        <div class="tooltip">
+                            <div class="tooltip-title">Your Digital Bills (UTXOs)</div>
+                            Think of your Bitcoin like a wallet full of cash bills. Each "bill" (called a UTXO) is a different amount. When you spend, you use these bills to make the payment.
+                        </div>
+                    </span>
+                </label>
+
                 <div class="utxo-section">
-                    <div class="utxo-section-header">
-                        <span class="utxo-section-title">Auto-fetch from Address</span>
-                        <button class="info-btn" onclick="toggleUtxoInfo()">?</button>
-                    </div>
-                    <div class="utxo-info-tooltip" id="utxo-info">
-                        <strong>What is this?</strong> Enter the timelocked address to automatically fetch available UTXOs from the blockchain. Alternatively, you can add UTXOs manually below if you know the transaction details.
-                    </div>
-                    <div class="inline-input">
-                        <input type="text" id="utxo-address" placeholder="Address to fetch UTXOs from">
-                        <button class="secondary" onclick="fetchUTXOs()">Fetch</button>
-                    </div>
-                </div>
-                <div class="utxo-section" style="margin-top: 0.5rem;">
-                    <div class="utxo-section-header">
-                        <span class="utxo-section-title">Available UTXOs</span>
-                    </div>
-                    <div class="utxo-list" id="utxo-list">
-                        <div style="padding: 0.75rem; color: var(--text-secondary); text-align: center; font-size: 0.85rem;">
-                            No UTXOs loaded. Fetch from address or add manually below.
+                    <div class="utxo-header">
+                        <div class="utxo-header-left">
+                            <span class="utxo-title">Load from Vault Address</span>
                         </div>
                     </div>
-                    <div class="total-display">
-                        <span>Selected:</span>
-                        <span id="utxo-count">0</span> UTXOs |
-                        <span id="total-sats">0</span> sats
+                    <div class="input-group">
+                        <input type="text" id="utxo-address" placeholder="Your vault address">
+                        <button class="btn-secondary" onclick="fetchUTXOs()">Find Funds</button>
                     </div>
                 </div>
-                <div class="utxo-section" style="margin-top: 0.5rem;">
-                    <div class="utxo-section-header">
-                        <span class="utxo-section-title">Manual UTXO Entry</span>
+
+                <div class="utxo-section" style="margin-top: 0.75rem;">
+                    <div class="utxo-header">
+                        <span class="utxo-title">Your Digital Bills</span>
+                        <span class="info-trigger" style="position: relative;">?
+                            <div class="tooltip" style="right: 0; left: auto; transform: none;">
+                                <div class="tooltip-title">Why Multiple Bills?</div>
+                                Each deposit to your vault creates a separate "bill". Using many small bills makes your transaction slightly more expensive (heavier). Consider consolidating when fees are low.
+                            </div>
+                        </span>
                     </div>
-                    <div class="inline-input">
-                        <input type="text" id="manual-utxo" placeholder="txid:vout:amount (e.g., abc...:0:0.1)">
-                        <button class="secondary" onclick="addManualUTXO()">Add</button>
+                    <div class="utxo-list" id="utxo-list">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">&#128176;</div>
+                            <div class="empty-state-text">No funds loaded yet. Enter your vault address above and click "Find Funds".</div>
+                        </div>
+                    </div>
+                    <div class="utxo-summary">
+                        <span class="utxo-summary-label">Selected: <strong id="utxo-count">0</strong> bills</span>
+                        <span class="utxo-summary-value"><span id="total-sats">0</span> sats</span>
+                    </div>
+                </div>
+
+                <div class="advanced-toggle" onclick="toggleAdvanced('utxo-advanced', this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                    Add funds manually
+                </div>
+                <div class="advanced-content" id="utxo-advanced">
+                    <div class="utxo-section">
+                        <div class="utxo-header">
+                            <span class="utxo-title">Manual Entry</span>
+                        </div>
+                        <div class="input-group">
+                            <input type="text" id="manual-utxo" placeholder="txid:vout:amount (e.g., abc...:0:0.1)">
+                            <button class="btn-secondary" onclick="addManualUTXO()">Add</button>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div id="mainnet-spend-warning" class="warning-box" style="display: none;">
-                <strong>Warning:</strong> You are about to spend REAL Bitcoin on mainnet. This action is IRREVERSIBLE. Double-check all details!
+            <div id="mainnet-spend-warning" class="alert-box alert-warning" style="display: none;">
+                <svg class="alert-box-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                </svg>
+                <div>
+                    <strong>Real Bitcoin:</strong> You're about to withdraw real Bitcoin. Double-check all details - this action cannot be undone!
+                </div>
             </div>
 
-            <button id="create-tx-btn" class="primary" onclick="createTransaction()">Create Transaction</button>
+            <button id="create-tx-btn" class="btn-primary" onclick="createTransaction()" style="width: 100%;">
+                Prepare Withdrawal
+            </button>
 
             <div id="spend-results" class="results hidden">
                 <div class="result-field">
-                    <label>Transaction ID (after broadcast)</label>
+                    <label class="result-label">
+                        Transaction ID
+                        <span class="info-trigger">?
+                            <div class="tooltip">
+                                <div class="tooltip-title">Digital Receipt</div>
+                                This unique code identifies your transaction on the Bitcoin network. Use it to track your withdrawal's progress.
+                            </div>
+                        </span>
+                    </label>
                     <div class="copyable">
                         <input type="text" id="result-txid" readonly>
-                        <button class="copy-btn secondary" onclick="copyField('result-txid')">Copy</button>
+                        <button class="copy-btn btn-secondary" onclick="copyField('result-txid')">Copy</button>
                     </div>
                 </div>
 
-                <div class="result-field">
-                    <label>Size / Fee</label>
-                    <div style="display: flex; gap: 2rem; padding: 0.5rem 0;">
-                        <span>vSize: <strong id="result-vsize">--</strong> vB</span>
-                        <span>Fee: <strong id="result-fee">--</strong> sats</span>
-                        <span>Output: <strong id="result-output">--</strong> sats</span>
+                <div class="tx-stats">
+                    <div class="tx-stat">
+                        <div class="tx-stat-label">Size</div>
+                        <div class="tx-stat-value"><span id="result-vsize">--</span> vB</div>
+                    </div>
+                    <div class="tx-stat">
+                        <div class="tx-stat-label">Fee</div>
+                        <div class="tx-stat-value"><span id="result-fee">--</span> sats</div>
+                    </div>
+                    <div class="tx-stat">
+                        <div class="tx-stat-label">You Receive</div>
+                        <div class="tx-stat-value"><span id="result-output">--</span> sats</div>
                     </div>
                 </div>
 
-                <div class="result-field">
-                    <label>Raw Transaction Hex</label>
-                    <div class="copyable">
-                        <textarea id="result-rawtx" readonly rows="4"></textarea>
-                        <button class="copy-btn secondary" onclick="copyField('result-rawtx')">Copy</button>
+                <div class="advanced-toggle" onclick="toggleAdvanced('tx-advanced', this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 9l6 6 6-6"/>
+                    </svg>
+                    Raw transaction data
+                </div>
+                <div class="advanced-content" id="tx-advanced">
+                    <div class="result-field">
+                        <label class="result-label">Raw Transaction Hex</label>
+                        <div class="copyable">
+                            <textarea id="result-rawtx" readonly rows="4"></textarea>
+                            <button class="copy-btn btn-secondary" onclick="copyField('result-rawtx')">Copy</button>
+                        </div>
                     </div>
                 </div>
 
                 <div id="broadcast-section">
-                    <div class="warning-box">
-                        <strong>Warning:</strong> Broadcasting is IRREVERSIBLE. Verify all details above before proceeding.
+                    <div class="alert-box alert-warning" style="margin-top: 1.5rem;">
+                        <svg class="alert-box-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                        </svg>
+                        <div>
+                            <strong>Final Step:</strong> Broadcasting sends your transaction to the Bitcoin network. This action is permanent and cannot be reversed.
+                        </div>
                     </div>
-                    <button id="broadcast-btn" class="danger" onclick="broadcastTransaction()">Broadcast Transaction</button>
-                    <div id="broadcast-result" class="success-box" style="display: none;">
-                        Transaction broadcast successfully!
-                        <br>TXID: <span id="broadcast-txid"></span>
-                        <br><a id="explorer-link" href="#" target="_blank">View on Explorer</a>
+
+                    <div class="slide-confirm" id="broadcast-slider">
+                        <div class="slide-track">
+                            <span class="slide-text">Slide to broadcast transaction</span>
+                        </div>
+                        <div class="slide-thumb" id="slide-thumb">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div id="broadcast-result" class="alert-box alert-success" style="display: none;">
+                        <svg class="alert-box-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        <div>
+                            <strong>Success!</strong> Your transaction has been broadcast.
+                            <br>Tracking ID: <span id="broadcast-txid" style="font-family: monospace;"></span>
+                            <br><a id="explorer-link" href="#" target="_blank" style="color: inherit; text-decoration: underline;">View on Block Explorer</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -822,23 +1643,33 @@
     </main>
 
     <footer>
-        <p>All cryptographic operations run client-side. Private keys never leave your browser.</p>
-        <p style="margin-top: 0.5rem;">
-            Powered by <a href="https://mempool.space" target="_blank">mempool.space</a> API |
-            <span id="regtest-info" style="display: none;">Regtest Proxy: <code>http://localhost:5001</code></span>
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-bottom: 1rem;">
+            <div class="security-badge">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                </svg>
+                Client-side only - keys never leave your browser
+            </div>
+            <div class="security-badge">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                </svg>
+                No servers - pure Bitcoin protocol
+            </div>
+        </div>
+        <p>
+            Powered by <a href="https://mempool.space" target="_blank">mempool.space</a> API
+            <span id="regtest-info" style="display: none;"> | Regtest: <code>localhost:5001</code></span>
         </p>
     </footer>
 
     <!-- Load crypto libraries as ES modules -->
     <script type="module">
-        // Load both libraries as ES modules and expose to global scope
         import * as secp from 'https://cdn.jsdelivr.net/npm/noble-secp256k1@1.2.14/+esm';
         import * as tapscript from 'https://unpkg.com/@cmdcode/tapscript@1.4.6/dist/module.mjs';
 
         window.nobleSecp256k1 = secp;
         window.tapscript = tapscript;
-
-        // Signal that libraries are loaded
         window.dispatchEvent(new Event('libraries-loaded'));
     </script>
 
@@ -847,10 +1678,8 @@
     // CONSTANTS
     // ============================================================================
 
-    // NUMS point - provably unspendable (no one knows the discrete log)
     const NUMS_KEY_HEX = '50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0';
 
-    // Network configurations
     const NETWORKS = {
         mainnet: {
             bech32: 'bc',
@@ -884,10 +1713,7 @@
         }
     };
 
-    // Leaf version for Tapscript
     const LEAF_VERSION = 0xc0;
-
-    // secp256k1 curve order (for negating keys with odd y-coordinate)
     const SECP256K1_ORDER = BigInt('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141');
 
     // State
@@ -913,12 +1739,10 @@
         return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    // Encode an integer as minimal Bitcoin Script pushdata (little-endian, signed)
     function encodeScriptInt(n) {
-        if (n === 0) return '';  // OP_0 is handled by script assembler
-        if (n >= 1 && n <= 16) return '';  // OP_1-OP_16 handled by assembler
+        if (n === 0) return '';
+        if (n >= 1 && n <= 16) return '';
 
-        // Convert to bytes (little-endian)
         let bytes = [];
         let absN = Math.abs(n);
         while (absN > 0) {
@@ -926,11 +1750,9 @@
             absN = Math.floor(absN / 256);
         }
 
-        // If positive and MSB of last byte is set, add 0x00
         if (n > 0 && (bytes[bytes.length - 1] & 0x80) !== 0) {
             bytes.push(0x00);
         }
-        // If negative, set the sign bit
         if (n < 0) {
             if ((bytes[bytes.length - 1] & 0x80) !== 0) {
                 bytes.push(0x80);
@@ -962,11 +1784,14 @@
         document.execCommand('copy');
         field.type = originalType;
 
-        // Visual feedback
         const btn = field.parentElement.querySelector('.copy-btn');
         const originalText = btn.textContent;
         btn.textContent = 'Copied!';
-        setTimeout(() => btn.textContent = originalText, 1000);
+        btn.style.color = 'var(--success)';
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.color = '';
+        }, 1500);
     }
 
     function toggleVisibility(fieldId, btn) {
@@ -980,6 +1805,12 @@
         }
     }
 
+    function toggleAdvanced(contentId, toggleEl) {
+        const content = document.getElementById(contentId);
+        content.classList.toggle('visible');
+        toggleEl.classList.toggle('open');
+    }
+
     function getSelectedNetwork() {
         return document.getElementById('network-selector').value;
     }
@@ -987,15 +1818,12 @@
     function onGlobalNetworkChange() {
         const network = getSelectedNetwork();
 
-        // Show/hide mainnet warnings
         const isMainnet = network === 'mainnet';
-        document.getElementById('mainnet-create-warning').style.display = isMainnet ? 'block' : 'none';
-        document.getElementById('mainnet-spend-warning').style.display = isMainnet ? 'block' : 'none';
+        document.getElementById('mainnet-create-warning').style.display = isMainnet ? 'flex' : 'none';
+        document.getElementById('mainnet-spend-warning').style.display = isMainnet ? 'flex' : 'none';
 
-        // Show/hide regtest proxy info
         document.getElementById('regtest-info').style.display = network === 'regtest' ? 'inline' : 'none';
 
-        // Update destination placeholder based on network
         const destInput = document.getElementById('destination');
         if (network === 'mainnet') {
             destInput.placeholder = 'bc1q... or bc1p... (mainnet address)';
@@ -1005,13 +1833,8 @@
             destInput.placeholder = 'tb1q... or tb1p... (' + network + ' address)';
         }
 
-        // Reset last block height to show updates
         lastBlockHeight = null;
-
-        // Update connection immediately
         refreshNetworkData();
-
-        // Update time estimate
         updateTimeEstimate();
     }
 
@@ -1031,12 +1854,6 @@
         }
     }
 
-    function toggleUtxoInfo() {
-        const info = document.getElementById('utxo-info');
-        info.classList.toggle('visible');
-    }
-
-    // Format large numbers with K, M suffixes for compact display
     function formatBlockHeight(height) {
         if (height >= 1000000) {
             return (height / 1000000).toFixed(2) + 'M';
@@ -1049,10 +1866,6 @@
     // ============================================================================
     // NETWORK API FUNCTIONS
     // ============================================================================
-
-    async function getApiUrl(network) {
-        return NETWORKS[network].api;
-    }
 
     async function refreshNetworkData() {
         const network = getSelectedNetwork();
@@ -1076,52 +1889,31 @@
                 }
 
                 document.getElementById('status-indicator').classList.add('connected');
-                document.getElementById('status-text').textContent = network.charAt(0).toUpperCase() + network.slice(1);
-                // Use compact format for header, full format for current-height
                 document.getElementById('header-block-height').textContent = formatBlockHeight(height);
                 document.getElementById('header-block-height').title = height.toLocaleString() + ' blocks';
                 document.getElementById('current-height').textContent = height.toLocaleString();
-                document.getElementById('live-indicator').style.display = 'inline-block';
 
-                // Update time estimate if block changed
                 if (lastBlockHeight !== height) {
                     lastBlockHeight = height;
                     updateTimeEstimate();
                 }
 
-                // Update fee suggestions
                 await updateFeeRates(network);
             } else {
                 throw new Error('Connection failed');
             }
         } catch (error) {
             document.getElementById('status-indicator').classList.remove('connected');
-            document.getElementById('status-text').textContent = 'Disconnected';
             document.getElementById('header-block-height').textContent = '--';
             document.getElementById('current-height').textContent = '--';
-            document.getElementById('live-indicator').style.display = 'none';
         }
     }
 
     function startAutoRefresh() {
-        // Clear any existing interval
         if (refreshInterval) {
             clearInterval(refreshInterval);
         }
-        // Refresh every 1 second
         refreshInterval = setInterval(refreshNetworkData, 1000);
-    }
-
-    function stopAutoRefresh() {
-        if (refreshInterval) {
-            clearInterval(refreshInterval);
-            refreshInterval = null;
-        }
-    }
-
-    // Alias for backward compatibility
-    async function testConnection() {
-        await refreshNetworkData();
     }
 
     async function updateFeeRates(network) {
@@ -1131,10 +1923,8 @@
         try {
             let response;
             if (network === 'regtest') {
-                // Regtest uses our proxy
                 response = await fetch(api + '/fees/recommended');
             } else {
-                // mempool.space uses /v1/fees/recommended
                 response = await fetch(api + '/v1/fees/recommended');
             }
 
@@ -1151,7 +1941,6 @@
                 document.getElementById('fee-slow').textContent = feeRates.slow + ' sat/vB';
             }
         } catch (error) {
-            // Silently fail, keep defaults
             console.log('Fee fetch error:', error.message);
         }
     }
@@ -1178,7 +1967,7 @@
 
             return await response.json();
         } catch (error) {
-            throw new Error('Failed to fetch UTXOs: ' + error.message);
+            throw new Error('Failed to fetch funds: ' + error.message);
         }
     }
 
@@ -1204,7 +1993,7 @@
     }
 
     // ============================================================================
-    // BITCOIN CRYPTOGRAPHIC FUNCTIONS (using tapscript library)
+    // BITCOIN CRYPTOGRAPHIC FUNCTIONS
     // ============================================================================
 
     function generatePrivateKey() {
@@ -1214,44 +2003,34 @@
     }
 
     function derivePublicKey(privateKeyBytes) {
-        // Use noble-secp256k1 for key derivation
         const secp = window.nobleSecp256k1;
 
         if (!secp) {
-            throw new Error('Secp256k1 library not loaded. Please wait for page to fully load.');
+            throw new Error('Crypto library not loaded. Please wait for page to fully load.');
         }
 
-        // Get compressed public key (33 bytes with prefix)
         const pubKeyCompressed = secp.getPublicKey(privateKeyBytes, true);
-
-        // For Taproot/Tapscript, we need x-only pubkey (32 bytes, without 02/03 prefix)
-        // BIP-342 requires x-only pubkeys for OP_CHECKSIG/OP_CHECKSIGVERIFY
-        const xOnlyPubKey = pubKeyCompressed.slice(1); // Remove the 02/03 prefix byte
+        const xOnlyPubKey = pubKeyCompressed.slice(1);
 
         return bytesToHex(xOnlyPubKey);
     }
 
-    // WIF encoding using base58check
     async function privateKeyToWIF(privateKeyBytes, network) {
         const prefix = NETWORKS[network].wifPrefix;
 
-        // Compose: prefix + privkey + 0x01 (compressed)
         const payload = new Uint8Array(34);
         payload[0] = prefix;
         payload.set(privateKeyBytes, 1);
-        payload[33] = 0x01; // Compressed flag
+        payload[33] = 0x01;
 
-        // Calculate checksum (first 4 bytes of double SHA256)
         const hash1 = await sha256(payload);
         const hash2 = await sha256(hash1);
         const checksum = hash2.slice(0, 4);
 
-        // Concat payload + checksum
         const full = new Uint8Array(38);
         full.set(payload);
         full.set(checksum, 34);
 
-        // Base58 encode
         return base58Encode(full);
     }
 
@@ -1265,7 +2044,6 @@
         return await sha256(first);
     }
 
-    // Base58 encoding
     const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
     function base58Encode(bytes) {
@@ -1278,7 +2056,6 @@
             result = BASE58_ALPHABET[Number(remainder)] + result;
         }
 
-        // Add leading zeros
         for (let i = 0; i < bytes.length && bytes[i] === 0; i++) {
             result = '1' + result;
         }
@@ -1294,13 +2071,11 @@
             num = num * 58n + BigInt(idx);
         }
 
-        // Convert to bytes
         let hex = num.toString(16);
         if (hex.length % 2) hex = '0' + hex;
 
         const bytes = hexToBytes(hex);
 
-        // Add leading zeros
         const leadingZeros = str.match(/^1*/)[0].length;
         const result = new Uint8Array(leadingZeros + bytes.length);
         result.set(bytes, leadingZeros);
@@ -1312,34 +2087,29 @@
         try {
             const decoded = base58Decode(wif);
 
-            // Verify checksum
             const payload = decoded.slice(0, -4);
             const checksum = decoded.slice(-4);
             const hash = await doubleSha256(payload);
 
             for (let i = 0; i < 4; i++) {
                 if (hash[i] !== checksum[i]) {
-                    throw new Error('Invalid WIF checksum');
+                    throw new Error('Invalid recovery phrase checksum');
                 }
             }
 
-            // First byte is prefix (0x80 mainnet, 0xef testnet/regtest)
-            // Last byte might be 0x01 for compressed
             let privkey;
             if (payload.length === 34 && payload[33] === 0x01) {
-                // Compressed
                 privkey = payload.slice(1, 33);
             } else if (payload.length === 33) {
-                // Uncompressed
                 privkey = payload.slice(1, 33);
             } else {
-                throw new Error('Invalid WIF length');
+                throw new Error('Invalid recovery phrase length');
             }
 
             const network = payload[0] === 0x80 ? 'mainnet' : 'regtest';
             return { privateKey: privkey, network };
         } catch (e) {
-            throw new Error('Invalid WIF format: ' + e.message);
+            throw new Error('Invalid recovery phrase format: ' + e.message);
         }
     }
 
@@ -1350,28 +2120,19 @@
     function createTaprootAddress(publicKeyHex, locktime, network) {
         const { Address, Script, Tap } = window.tapscript;
 
-        // Encode locktime as proper Bitcoin Script integer (little-endian, signed)
         const locktimeHex = encodeScriptInt(locktime);
 
-        // Build the timelock script: <pubkey> OP_CHECKSIGVERIFY <locktime> OP_CHECKLOCKTIMEVERIFY
-        // In script assembly: [ pubkey, 'OP_CHECKSIGVERIFY', locktime_bytes, 'OP_CHECKLOCKTIMEVERIFY' ]
         const timelockScript = [
             publicKeyHex,
             'OP_CHECKSIGVERIFY',
-            locktimeHex,  // Use hex-encoded bytes instead of number
+            locktimeHex,
             'OP_CHECKLOCKTIMEVERIFY'
         ];
 
-        // Create tap tree with NUMS as internal key
         const numsKey = NUMS_KEY_HEX;
-
-        // Get the tapleaf using encodeScript
         const tapleaf = Tap.encodeScript(timelockScript);
-
-        // Get the taptree (single leaf)
         const [tpubkey, cblock] = Tap.getPubKey(numsKey, { target: tapleaf });
 
-        // Map our network names to tapscript network names
         const tapscriptNetwork = {
             'mainnet': 'main',
             'testnet4': 'testnet',
@@ -1380,10 +2141,7 @@
             'regtest': 'regtest'
         }[network] || 'regtest';
 
-        // Generate address (tapscript uses network name, not HRP)
         const address = Address.p2tr.fromPubKey(tpubkey, tapscriptNetwork);
-
-        // Build descriptor string
         const descriptor = `tr(${numsKey},and_v(v:pk(${publicKeyHex}),after(${locktime})))`;
 
         return {
@@ -1410,34 +2168,25 @@
             const locktimeInput = document.getElementById('locktime').value;
             const importKey = document.getElementById('import-privkey').value.trim();
 
-            // Validate locktime
             const locktime = parseInt(locktimeInput);
             if (isNaN(locktime) || locktime < 1 || locktime >= 500000000) {
-                throw new Error('Locktime must be a block height between 1 and 499,999,999');
+                throw new Error('Block height must be between 1 and 499,999,999');
             }
 
             let privateKeyBytes;
 
             if (importKey) {
-                // Parse WIF
                 const parsed = await wifToPrivateKey(importKey);
                 privateKeyBytes = parsed.privateKey;
             } else {
-                // Generate new key
                 privateKeyBytes = generatePrivateKey();
             }
 
-            // Derive public key
             const publicKeyHex = derivePublicKey(privateKeyBytes);
-
-            // Create Taproot address
             const result = createTaprootAddress(publicKeyHex, locktime, network);
-
-            // Convert private key to WIF
             const privateKeyWIF = await privateKeyToWIF(privateKeyBytes, network);
             const privateKeyHex = bytesToHex(privateKeyBytes);
 
-            // Store for later use
             currentAddressData = {
                 network,
                 address: result.address,
@@ -1449,14 +2198,12 @@
                 ...result
             };
 
-            // Update UI
             document.getElementById('result-address').value = result.address;
             document.getElementById('result-descriptor').value = result.descriptor;
-            document.getElementById('result-locktime').value = locktime;
+            document.getElementById('result-locktime').value = locktime.toLocaleString();
             document.getElementById('result-privkey-wif').value = privateKeyWIF;
             document.getElementById('result-privkey-hex').value = privateKeyHex;
             document.getElementById('result-pubkey').value = publicKeyHex;
-            document.getElementById('lock-target').textContent = locktime;
 
             document.getElementById('create-results').classList.remove('hidden');
 
@@ -1469,7 +2216,7 @@
 
     function downloadBackup() {
         if (!currentAddressData) {
-            showError('No address generated yet');
+            showError('No vault created yet');
             return;
         }
 
@@ -1482,14 +2229,14 @@
             privateKeyHex: currentAddressData.privateKeyHex,
             publicKeyHex: currentAddressData.publicKeyHex,
             createdAt: new Date().toISOString(),
-            warning: 'KEEP THIS FILE SECURE! Anyone with the private key can spend your funds after the locktime.'
+            warning: 'KEEP THIS FILE SECURE! Anyone with the private key can withdraw your funds after the unlock date.'
         };
 
         const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `timelock-wallet-${currentAddressData.address.slice(0, 12)}.json`;
+        a.download = `bitcoin-vault-${currentAddressData.address.slice(0, 12)}.json`;
         a.click();
         URL.revokeObjectURL(url);
     }
@@ -1503,7 +2250,7 @@
         const network = getSelectedNetwork();
 
         if (!address) {
-            showError('Please enter an address to fetch UTXOs from');
+            showError('Please enter your vault address first');
             return;
         }
 
@@ -1513,7 +2260,7 @@
             const fetchedUTXOs = await fetchUTXOsFromAPI(address, network);
 
             if (!fetchedUTXOs || fetchedUTXOs.length === 0) {
-                alert('No UTXOs found for this address.\n\nThis could mean:\n• The address has no funds\n• Transactions are still unconfirmed\n• The address has never received any Bitcoin\n\nYou can also add UTXOs manually below.');
+                alert('No funds found for this address.\n\nThis could mean:\n• The vault has no deposits yet\n• Deposits are still confirming\n• Wrong network selected\n\nYou can also add funds manually using the advanced option.');
                 utxos = [];
                 renderUTXOList();
                 return;
@@ -1552,7 +2299,6 @@
         const vout = parseInt(parts[1]);
         let value = parts[2];
 
-        // Check if amount has decimal (BTC) or not (sats)
         if (value.includes('.')) {
             value = Math.round(parseFloat(value) * 100000000);
         } else {
@@ -1574,17 +2320,24 @@
         const list = document.getElementById('utxo-list');
 
         if (utxos.length === 0) {
-            list.innerHTML = '<div style="padding: 1rem; color: var(--text-secondary); text-align: center;">No UTXOs loaded.</div>';
+            list.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">&#128176;</div>
+                    <div class="empty-state-text">No funds loaded yet.</div>
+                </div>
+            `;
             updateUTXOTotal();
             return;
         }
 
         list.innerHTML = utxos.map((u, i) => `
             <div class="utxo-item">
-                <input type="checkbox" ${u.selected ? 'checked' : ''} onchange="toggleUTXO(${i})">
-                <span class="txid">${u.txid.slice(0, 16)}...${u.txid.slice(-8)}:${u.vout}</span>
-                <span class="amount">${u.value.toLocaleString()} sats</span>
-                <button class="secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; margin-left: 0.5rem;" onclick="removeUTXO(${i})">X</button>
+                <input type="checkbox" class="utxo-checkbox" ${u.selected ? 'checked' : ''} onchange="toggleUTXO(${i})">
+                <div class="utxo-details">
+                    <span class="utxo-txid">${u.txid.slice(0, 12)}...${u.txid.slice(-8)}:${u.vout}</span>
+                </div>
+                <span class="utxo-amount">${u.value.toLocaleString()} sats</span>
+                <button class="btn-secondary utxo-remove" onclick="removeUTXO(${i})">&#10005;</button>
             </div>
         `).join('');
 
@@ -1614,11 +2367,10 @@
     // ============================================================================
 
     function parseDescriptor(descriptor) {
-        // Parse: tr(INTERNAL_KEY,and_v(v:pk(PUBKEY),after(LOCKTIME)))
         const match = descriptor.match(/tr\(([0-9a-fA-F]+),and_v\(v:pk\(([0-9a-fA-F]+)\),after\((\d+)\)\)\)/);
 
         if (!match) {
-            throw new Error('Invalid descriptor format');
+            throw new Error('Invalid vault blueprint format');
         }
 
         return {
@@ -1638,36 +2390,29 @@
             const destination = document.getElementById('destination').value.trim();
             const feeRate = parseInt(document.getElementById('fee-rate').value);
 
-            // Validation
-            if (!descriptor) throw new Error('Descriptor is required');
-            if (!privkeyInput) throw new Error('Private key is required');
+            if (!descriptor) throw new Error('Vault blueprint is required');
+            if (!privkeyInput) throw new Error('Recovery phrase is required');
             if (!destination) throw new Error('Destination address is required');
             if (isNaN(feeRate) || feeRate < 1) throw new Error('Invalid fee rate');
 
             const selectedUTXOs = utxos.filter(u => u.selected);
-            if (selectedUTXOs.length === 0) throw new Error('No UTXOs selected');
+            if (selectedUTXOs.length === 0) throw new Error('No funds selected');
 
-            // Parse descriptor
             const { internalKey, publicKey, locktime } = parseDescriptor(descriptor);
 
-            // Parse private key
             let privateKeyBytes;
             if (privkeyInput.length === 64) {
-                // Hex format
                 privateKeyBytes = hexToBytes(privkeyInput);
             } else {
-                // WIF format
                 const parsed = await wifToPrivateKey(privkeyInput);
                 privateKeyBytes = parsed.privateKey;
             }
 
-            // Verify public key matches
             const derivedPubKey = derivePublicKey(privateKeyBytes);
             if (derivedPubKey !== publicKey) {
-                throw new Error('Private key does not match the public key in descriptor');
+                throw new Error('Recovery phrase does not match the vault blueprint');
             }
 
-            // Build and sign transaction
             const result = await buildAndSignTransaction(
                 privateKeyBytes,
                 publicKey,
@@ -1679,17 +2424,18 @@
                 network
             );
 
-            // Update UI
             document.getElementById('result-txid').value = result.txid;
             document.getElementById('result-vsize').textContent = result.vsize;
-            document.getElementById('result-fee').textContent = result.fee;
-            document.getElementById('result-output').textContent = result.outputAmount;
+            document.getElementById('result-fee').textContent = result.fee.toLocaleString();
+            document.getElementById('result-output').textContent = result.outputAmount.toLocaleString();
             document.getElementById('result-rawtx').value = result.rawTx;
 
             document.getElementById('spend-results').classList.remove('hidden');
 
-            // Store for broadcast
             window.pendingTx = result;
+
+            // Initialize slide-to-confirm
+            initSlideConfirm();
 
         } catch (error) {
             showError(error.message);
@@ -1701,25 +2447,20 @@
     async function buildAndSignTransaction(privateKeyBytes, publicKey, internalKey, locktime, utxos, destination, feeRate, network) {
         const { Address, Script, Tap, Tx, Signer, util } = window.tapscript;
 
-        // Calculate total input
         const totalInput = utxos.reduce((sum, u) => sum + u.value, 0);
 
-        // Encode locktime as proper Bitcoin Script integer (little-endian, signed)
         const locktimeHex = encodeScriptInt(locktime);
 
-        // Build the timelock script
         const timelockScript = [
             publicKey,
             'OP_CHECKSIGVERIFY',
-            locktimeHex,  // Use hex-encoded bytes instead of number
+            locktimeHex,
             'OP_CHECKLOCKTIMEVERIFY'
         ];
 
-        // Get tapleaf and control block using encodeScript
         const tapleaf = Tap.encodeScript(timelockScript);
         const [tpubkey, cblock] = Tap.getPubKey(internalKey, { target: tapleaf });
 
-        // Map network name for tapscript
         const tapscriptNetwork = {
             'mainnet': 'main',
             'testnet4': 'testnet',
@@ -1728,28 +2469,19 @@
             'regtest': 'regtest'
         }[network] || 'regtest';
 
-        // Get script pubkey for the locked address
         const lockedAddress = Address.p2tr.fromPubKey(tpubkey, tapscriptNetwork);
         const scriptPubKey = Address.toScriptPubKey(lockedAddress);
-
-        // Decode destination address to script pubkey
         const destScriptPubKey = Address.toScriptPubKey(destination);
 
-        // Estimate transaction size for fee calculation
-        // Taproot input: ~57.5 vbytes with script path spend
-        // P2TR output: 43 vbytes
-        // Overhead: 10.5 vbytes
         const estimatedVsize = 10.5 + (57.5 * utxos.length) + 43;
         const estimatedFee = Math.ceil(estimatedVsize * feeRate);
 
         let outputAmount = totalInput - estimatedFee;
 
-        // Check dust threshold (330 sats for P2TR)
         if (outputAmount < 330) {
-            throw new Error(`Output amount (${outputAmount} sats) is below dust threshold (330 sats). Need more funds or lower fee.`);
+            throw new Error(`Output (${outputAmount} sats) is too small. You need more funds or a lower fee.`);
         }
 
-        // Build transaction inputs
         const vin = utxos.map(u => ({
             txid: u.txid,
             vout: u.vout,
@@ -1757,16 +2489,14 @@
                 value: u.value,
                 scriptPubKey: scriptPubKey
             },
-            sequence: 0xfffffffe // Enable locktime
+            sequence: 0xfffffffe
         }));
 
-        // Build transaction output
         const vout = [{
             value: outputAmount,
             scriptPubKey: destScriptPubKey
         }];
 
-        // Create transaction template
         const txData = {
             version: 2,
             locktime: locktime,
@@ -1774,22 +2504,16 @@
             vout
         };
 
-        // Sign each input
         const privateKeyHex = bytesToHex(privateKeyBytes);
 
-        // Encode the script for the witness (strip length prefix)
         const encodedScriptWithLen = Script.encode(timelockScript).hex;
-        // Script.encode includes a varint length prefix - we need raw script bytes for witness
-        // For scripts < 253 bytes, the length is 1 byte (2 hex chars)
         const rawScriptHex = encodedScriptWithLen.slice(2);
 
         for (let i = 0; i < vin.length; i++) {
-            // Sign with script path using the tapleaf extension
             const sig = Signer.taproot.sign(privateKeyHex, txData, i, {
                 extension: tapleaf
             });
 
-            // Build witness: [signature, script, control_block]
             txData.vin[i].witness = [
                 sig.hex,
                 rawScriptHex,
@@ -1797,30 +2521,21 @@
             ];
         }
 
-        // Serialize and calculate final size
         const rawTx = Tx.encode(txData).hex;
         const txBytes = hexToBytes(rawTx);
 
-        // Calculate actual vsize
-        // For segwit: vsize = (weight + 3) / 4, weight = base * 3 + total
-        // Simplified: roughly (len - witness_len*3/4)
         const actualVsize = Math.ceil(txBytes.length * 0.25 + txBytes.length * 0.75);
-
-        // Recalculate fee with actual size
         const actualFee = Math.ceil(actualVsize * feeRate);
 
-        // If fee changed significantly, rebuild transaction
         if (Math.abs(actualFee - estimatedFee) > feeRate) {
             outputAmount = totalInput - actualFee;
 
             if (outputAmount < 330) {
-                throw new Error(`Output amount (${outputAmount} sats) is below dust threshold after fee recalculation.`);
+                throw new Error(`Output (${outputAmount} sats) is too small after fee recalculation.`);
             }
 
-            // Rebuild with correct output
             txData.vout[0].value = outputAmount;
 
-            // Re-sign
             for (let i = 0; i < vin.length; i++) {
                 const sig = Signer.taproot.sign(privateKeyHex, txData, i, {
                     extension: tapleaf
@@ -1834,7 +2549,6 @@
             }
         }
 
-        // Final serialization
         const finalTx = Tx.encode(txData);
         const txid = finalTx.digest.hex;
 
@@ -1848,6 +2562,72 @@
         };
     }
 
+    // ============================================================================
+    // SLIDE TO CONFIRM
+    // ============================================================================
+
+    function initSlideConfirm() {
+        const slider = document.getElementById('broadcast-slider');
+        const thumb = document.getElementById('slide-thumb');
+
+        if (!slider || !thumb) return;
+
+        let isDragging = false;
+        let startX = 0;
+        let currentX = 4;
+        const maxX = slider.offsetWidth - thumb.offsetWidth - 8;
+
+        thumb.addEventListener('mousedown', startDrag);
+        thumb.addEventListener('touchstart', startDrag, { passive: true });
+
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('touchmove', drag, { passive: true });
+
+        document.addEventListener('mouseup', endDrag);
+        document.addEventListener('touchend', endDrag);
+
+        function startDrag(e) {
+            isDragging = true;
+            startX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+            thumb.style.transition = 'none';
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+
+            const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+            const deltaX = clientX - startX;
+            let newX = currentX + deltaX;
+
+            newX = Math.max(4, Math.min(maxX, newX));
+            thumb.style.left = newX + 'px';
+
+            if (newX >= maxX - 10) {
+                slider.classList.add('confirmed');
+            } else {
+                slider.classList.remove('confirmed');
+            }
+        }
+
+        function endDrag() {
+            if (!isDragging) return;
+            isDragging = false;
+
+            const currentLeft = parseInt(thumb.style.left) || 4;
+            thumb.style.transition = 'left 0.3s ease';
+
+            if (currentLeft >= maxX - 10) {
+                thumb.style.left = maxX + 'px';
+                currentX = maxX;
+                broadcastTransaction();
+            } else {
+                thumb.style.left = '4px';
+                currentX = 4;
+                slider.classList.remove('confirmed');
+            }
+        }
+    }
+
     async function broadcastTransaction() {
         if (!window.pendingTx) {
             showError('No transaction to broadcast');
@@ -1856,9 +2636,15 @@
 
         const network = window.pendingTx.network;
 
-        // Confirmation for mainnet
         if (network === 'mainnet') {
             if (!confirm('You are about to broadcast a transaction on MAINNET. This is IRREVERSIBLE. Continue?')) {
+                // Reset slider
+                const thumb = document.getElementById('slide-thumb');
+                const slider = document.getElementById('broadcast-slider');
+                if (thumb && slider) {
+                    thumb.style.left = '4px';
+                    slider.classList.remove('confirmed');
+                }
                 return;
             }
         }
@@ -1879,11 +2665,18 @@
                 document.getElementById('explorer-link').style.display = 'none';
             }
 
-            document.getElementById('broadcast-result').style.display = 'block';
-            document.getElementById('broadcast-btn').disabled = true;
+            document.getElementById('broadcast-result').style.display = 'flex';
+            document.getElementById('broadcast-slider').style.display = 'none';
 
         } catch (error) {
             showError(error.message);
+            // Reset slider on error
+            const thumb = document.getElementById('slide-thumb');
+            const slider = document.getElementById('broadcast-slider');
+            if (thumb && slider) {
+                thumb.style.left = '4px';
+                slider.classList.remove('confirmed');
+            }
         } finally {
             hideLoading();
         }
@@ -1909,31 +2702,26 @@
             return;
         }
 
-        document.getElementById('lock-target').textContent = locktime.toLocaleString();
-
         const blocksUntil = locktime - currentHeight;
 
-        // Check if locktime is below current height (invalid)
         if (blocksUntil < 0) {
-            blocksUntilEl.innerHTML = `<span class="locktime-warning">${Math.abs(blocksUntil).toLocaleString()} blocks in the past!</span>`;
-            timeUntilEl.innerHTML = `<span class="locktime-warning">Invalid: locktime must be greater than current block (${currentHeight.toLocaleString()})</span>`;
+            blocksUntilEl.innerHTML = `<span class="warning">${Math.abs(blocksUntil).toLocaleString()} blocks ago</span>`;
+            timeUntilEl.innerHTML = `<span class="warning">Already unlocked - choose a future block</span>`;
             estimateDiv.style.display = 'block';
             return;
         }
 
         if (blocksUntil === 0) {
-            blocksUntilEl.textContent = '0 (unlocked now!)';
-            timeUntilEl.textContent = 'Already unlocked - can spend immediately';
+            blocksUntilEl.textContent = '0';
+            timeUntilEl.textContent = 'Unlocks now - can withdraw immediately';
             estimateDiv.style.display = 'block';
             return;
         }
 
         blocksUntilEl.textContent = blocksUntil.toLocaleString();
 
-        // Calculate time estimate (10 min per block on mainnet/testnet/signet)
-        // Regtest is instant
         if (network === 'regtest') {
-            timeUntilEl.textContent = `${blocksUntil.toLocaleString()} blocks (instant on regtest)`;
+            timeUntilEl.textContent = 'Instant (regtest mode)';
         } else {
             const totalMinutes = blocksUntil * 10;
             const years = Math.floor(totalMinutes / (60 * 24 * 365));
@@ -1949,7 +2737,6 @@
             if (hours > 0 || days > 0 || months > 0 || years > 0) timeStr += `${hours}h `;
             if (years === 0 && months === 0) timeStr += `${minutes}m`;
 
-            // Also show approximate date
             const unlockDate = new Date(Date.now() + totalMinutes * 60 * 1000);
             const dateStr = unlockDate.toLocaleDateString('en-US', {
                 year: 'numeric',
@@ -1967,24 +2754,19 @@
     // INITIALIZATION
     // ============================================================================
 
-    // Wait for DOM and libraries to load
     let librariesLoaded = false;
     let domLoaded = false;
 
     function initApp() {
         if (!librariesLoaded || !domLoaded) return;
 
-        // Show welcome modal if first visit
         checkWelcomeModal();
-
-        // Initial connection and start auto-refresh
         refreshNetworkData();
         startAutoRefresh();
 
-        // Update locktime display and time estimate on input
         document.getElementById('locktime').addEventListener('input', updateTimeEstimate);
 
-        console.log('Bitcoin Timelock Wallet initialized');
+        console.log('Bitcoin Vault initialized');
         console.log('Secp256k1:', window.nobleSecp256k1 ? 'loaded' : 'NOT loaded');
         console.log('Tapscript:', window.tapscript ? 'loaded' : 'NOT loaded');
     }
@@ -1999,7 +2781,6 @@
         initApp();
     });
 
-    // Fallback: check if libraries loaded before event listener was set
     if (window.nobleSecp256k1 && window.tapscript) {
         librariesLoaded = true;
     }
