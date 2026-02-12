@@ -2414,6 +2414,44 @@
             if (!destination) throw new Error('Destination address is required');
             if (isNaN(feeRate) || feeRate < 1) throw new Error('Invalid fee rate');
 
+            // CRITICAL: Validate destination address format
+            // The tapscript library only supports bech32/bech32m addresses (bc1.../tb1.../bcrt1...)
+            // Legacy P2PKH (1.../m.../n...) and P2SH (3.../2...) addresses are NOT supported
+            // and will silently produce wrong outputs!
+            const validPrefixes = {
+                'mainnet': ['bc1q', 'bc1p'],
+                'testnet4': ['tb1q', 'tb1p'],
+                'testnet3': ['tb1q', 'tb1p'],
+                'signet': ['tb1q', 'tb1p'],
+                'regtest': ['bcrt1q', 'bcrt1p']
+            };
+            const allowedPrefixes = validPrefixes[network] || [];
+            const hasValidPrefix = allowedPrefixes.some(prefix => destination.toLowerCase().startsWith(prefix));
+
+            if (!hasValidPrefix) {
+                const isLegacy = /^[1mn][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(destination);
+                const isP2SH = /^[32][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(destination);
+
+                if (isLegacy || isP2SH) {
+                    throw new Error(
+                        `Legacy and P2SH addresses are not supported!\n\n` +
+                        `You entered: ${destination}\n\n` +
+                        `This appears to be a ${isLegacy ? 'legacy P2PKH' : 'P2SH'} address. ` +
+                        `Due to technical limitations, this wallet only supports native SegWit and Taproot addresses:\n\n` +
+                        `• bc1q... (SegWit)\n` +
+                        `• bc1p... (Taproot)\n\n` +
+                        `Please use a wallet that provides a bc1q... or bc1p... address.`
+                    );
+                } else {
+                    throw new Error(
+                        `Invalid destination address!\n\n` +
+                        `Expected format for ${network}:\n` +
+                        `• ${allowedPrefixes.join('...\n• ')}...\n\n` +
+                        `You entered: ${destination}`
+                    );
+                }
+            }
+
             const selectedUTXOs = utxos.filter(u => u.selected);
             if (selectedUTXOs.length === 0) throw new Error('No funds selected');
 
